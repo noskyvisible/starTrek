@@ -223,6 +223,8 @@ namespace StarTrek.EditorTools
             so.FindProperty("m_ColorGradingMode").intValue = (int)t.Grading;
             so.FindProperty("m_UseSRPBatcher").boolValue = true;
             so.FindProperty("m_SupportDataDrivenLensFlare").boolValue = true;
+            // Rendering layers let the space sun light the ships on the viewscreen but never the bridge.
+            so.FindProperty("m_SupportsLightLayers").boolValue = true;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
         }

@@ -35,6 +35,11 @@ namespace StarTrek.Audio
         public static AudioClip ButtonDenied => Pick(Current ? Current.buttonDenied : null, ProceduralSfx.Denied);
         public static AudioClip DoorOpen => Pick(Current ? Current.doorOpen : null, ProceduralSfx.DoorWhoosh);
         public static AudioClip DoorClose => Pick(Current ? Current.doorClose : null, ProceduralSfx.DoorWhoosh);
+        public static AudioClip ShieldsUp => Pick(Current ? Current.shieldsUp : null, ProceduralSfx.Chirp);
+        public static AudioClip PhaserFire => Pick(Current ? Current.phaserFire : null, ProceduralSfx.Chirp);
+        public static AudioClip TorpedoLaunch => Pick(Current ? Current.torpedoLaunch : null, ProceduralSfx.DoorWhoosh);
+        public static AudioClip HullHit => Pick(Current ? Current.hullHit : null, ProceduralSfx.DoorWhoosh);
+        public static AudioClip Explosion => Pick(Current ? Current.explosion : null, ProceduralSfx.DoorWhoosh);
 
         static AudioClip Pick(AudioClip clip, AudioClip fallback) => clip != null ? clip : fallback;
     }

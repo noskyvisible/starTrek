@@ -244,7 +244,11 @@ namespace StarTrek.EditorTools
             var pivot = new GameObject("CameraPivot").transform;
             pivot.SetParent(player.transform, false);
             pivot.localPosition = new Vector3(0f, 1.68f, 0f);
-            var cam = pivot.gameObject.AddComponent<Camera>();
+            // The camera sits on a child so shake never disturbs the look pivot or the interaction ray.
+            var eyes = new GameObject("Eyes");
+            eyes.transform.SetParent(pivot, false);
+            eyes.AddComponent<CameraShake>();
+            var cam = eyes.AddComponent<Camera>();
             cam.tag = "MainCamera";
             cam.nearClipPlane = 0.05f;
             cam.farClipPlane = 2000f;
@@ -252,7 +256,7 @@ namespace StarTrek.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = Color.black;
             cam.cullingMask = cullingMask;
-            pivot.gameObject.AddComponent<AudioListener>();
+            eyes.AddComponent<AudioListener>();
             var camData = cam.GetUniversalAdditionalCameraData();
             camData.renderPostProcessing = true;
             camData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
@@ -304,6 +308,23 @@ namespace StarTrek.EditorTools
             source.maxDistance = 20f;
             source.rolloffMode = AudioRolloffMode.Linear;
             return source;
+        }
+
+        /// <summary>
+        /// Names a rendering layer. URP ignores rendering-layer bits that have no name in
+        /// Tags and Layers, so a light filtered to an unnamed layer lights nothing.
+        /// </summary>
+        public static void EnsureRenderingLayer(int index, string name)
+        {
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var layers = tagManager.FindProperty("m_RenderingLayers");
+            if (layers.arraySize <= index)
+                layers.arraySize = index + 1;
+            if (layers.GetArrayElementAtIndex(index).stringValue == name)
+                return;
+            layers.GetArrayElementAtIndex(index).stringValue = name;
+            tagManager.ApplyModifiedPropertiesWithoutUndo();
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>Returns the index of a user layer with this name, creating it in the first free slot.</summary>

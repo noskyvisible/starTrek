@@ -99,10 +99,10 @@ namespace StarTrek.Simulation
         public const double DisruptorRangeKm = 100000;
         public const float DisruptorArcDegrees = 50f;
         public const double DisruptorSpeedKmS = 100000;
-        public const float DisruptorDamage = 9f;
-        public const float DisruptorCooldown = 2.4f;
-        public const float KlingonTorpedoDamage = 26f;
-        public const float KlingonTorpedoCooldown = 11f;
+        public const float DisruptorDamage = 11f;
+        public const float DisruptorCooldown = 2.0f;
+        public const float KlingonTorpedoDamage = 30f;
+        public const float KlingonTorpedoCooldown = 9f;
         public const double KlingonCruiseKmS = Flight.FullImpulseKmS * 0.6;
         public const float KlingonTurnDegreesPerSecond = 18f;
         public const double StrafeRangeKm = 60000;
@@ -224,7 +224,7 @@ namespace StarTrek.Simulation
                 Say(StationRole.Tactical, $"Direct hit! The {target.Name} is breaking up!");
                 ContactDestroyed?.Invoke(target);
                 Sensors.Contacts.Remove(target);
-                Sensors.SelectedIndex = 0;
+                SelectNextHostile();
             }
             else if (through > 0f && sinceTacticalReport > 1.5f)
             {
@@ -343,13 +343,31 @@ namespace StarTrek.Simulation
                 c.ShieldPercent = 1f;
                 i++;
             }
-            for (int k = 0; k < Sensors.Visible.Count; k++)
-                if (Sensors.Visible[k].Combat != null)
-                {
-                    Sensors.SelectedIndex = k;
-                    break;
-                }
+            SelectNextHostile();
             Say(StationRole.Science, $"Captain! Klingon warships de-cloaking! {i} K't'inga-class battle cruisers!");
+        }
+
+        /// <summary>Point sensors (and so fire control) at the nearest fighting enemy, if any.</summary>
+        void SelectNextHostile()
+        {
+            var visible = Sensors.Visible;
+            int best = -1;
+            double bestDistance = double.MaxValue;
+            for (int k = 0; k < visible.Count; k++)
+            {
+                var c = visible[k];
+                if (c.Combat == null || c.Combat.Destroyed)
+                    continue;
+                double d = Flight.DistanceTo(c);
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = k;
+                }
+            }
+            Sensors.SelectedIndex = best >= 0 ? best : 0;
+            if (best >= 0 && AmbushSprung)
+                Say(StationRole.Tactical, $"Targeting the {visible[best].Name}.");
         }
 
         void TickProjectiles(float dt)
@@ -423,9 +441,14 @@ namespace StarTrek.Simulation
                     speed = KlingonCruiseKmS;
                     break;
                 case KlingonTactic.Strafe:
-                    desired = Flight.Normalise(toPlayer + h.OrbitSign * (dist < StrafeRangeKm * 0.7 ? 80f : 55f));
+                {
+                    // Hold a strafing range: open out when too close, close in when too far, otherwise
+                    // circle. Too close and they'd whip round faster than the player can turn to answer.
+                    float offset = dist < StrafeRangeKm * 0.5 ? 125f : dist > StrafeRangeKm ? 35f : 90f;
+                    desired = Flight.Normalise(toPlayer + h.OrbitSign * offset);
                     speed = KlingonCruiseKmS * 0.6;
                     break;
+                }
                 default:
                     desired = toPlayer;
                     speed = KlingonCruiseKmS;

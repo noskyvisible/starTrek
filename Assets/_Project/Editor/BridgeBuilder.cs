@@ -85,6 +85,7 @@ namespace StarTrek.EditorTools
             var facing = Quaternion.LookRotation(new Vector3(-spawn.x, 0f, 3f - spawn.z), Vector3.up);
             var player = LevelBuildKit.AddPlayer(inputs.Controls, spawn, facing, ~(1 << spaceLayer));
             AddCaptainTools(player);
+            AddImpactFx(alert, player);
 
             LevelBuildKit.SaveScene(ScenePath);
             Debug.Log($"[StarTrek] Built {ScenePath} with {lights.Count} lights, Space layer {spaceLayer}.");
@@ -280,12 +281,18 @@ namespace StarTrek.EditorTools
             var rig = new GameObject("SpaceView");
             rig.transform.position = new Vector3(0f, -2000f, 0f);
 
+            // Stars sit far beyond the ships (which are drawn a few km out), so they never cover them.
             var field = new GameObject("Starfield", typeof(MeshFilter), typeof(MeshRenderer));
             field.layer = spaceLayer;
             field.transform.SetParent(rig.transform, false);
             field.GetComponent<MeshRenderer>().sharedMaterial = stars;
             field.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            field.AddComponent<Starfield>();
+            var starfield = field.AddComponent<Starfield>();
+            var sfSo = new SerializedObject(starfield);
+            sfSo.FindProperty("radius").floatValue = 60000f;
+            sfSo.FindProperty("minSize").floatValue = 75f;
+            sfSo.FindProperty("maxSize").floatValue = 300f;
+            sfSo.ApplyModifiedPropertiesWithoutUndo();
 
             var camGo = new GameObject("ViewscreenCamera");
             camGo.transform.SetParent(rig.transform, false);
@@ -295,13 +302,95 @@ namespace StarTrek.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.004f, 0.006f, 0.016f);
             cam.fieldOfView = 42f;
-            cam.nearClipPlane = 1f;
-            cam.farClipPlane = 1000f;
+            cam.nearClipPlane = 10f;
+            cam.farClipPlane = 130000f;
             cam.depth = -10f;
             cam.GetUniversalAdditionalCameraData().renderPostProcessing = false;
-            camGo.AddComponent<SpaceDrift>();
+
+            // A sun that lights only the ships out there (Space layer + ship rendering layer), never the bridge.
+            var sunGo = new GameObject("SpaceSun");
+            sunGo.transform.SetParent(rig.transform, false);
+            sunGo.transform.rotation = Quaternion.Euler(35f, -40f, 0f);
+            var sun = sunGo.AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.color = new Color(1f, 0.95f, 0.88f);
+            sun.intensity = 2.2f;
+            sun.shadows = LightShadows.None;
+            // Rendering layers keep the sun off the bridge (bridge objects stay on "Default").
+            LevelBuildKit.EnsureRenderingLayer(ShipRenderingLayer, "Space");
+            sun.cullingMask = -1;
+            sun.renderingLayerMask = 1 << ShipRenderingLayer;
+            sun.GetUniversalAdditionalLightData().renderingLayers = (uint)(1 << ShipRenderingLayer);
+
+            var view = rig.AddComponent<SpaceView>();
+            var so = new SerializedObject(view);
+            so.FindProperty("viewCamera").objectReferenceValue = cam;
+            so.FindProperty("starfield").objectReferenceValue = field.transform;
+            so.FindProperty("hostileModel").objectReferenceValue = ShipPrefab(KtingaModelPath, "SHIP_Klingon_Ktinga");
+            so.FindProperty("civilianModel").objectReferenceValue = ShipPrefab(FreighterModelPath, "SHIP_Civil_KobayashiMaru");
+            so.FindProperty("phaserMaterial").objectReferenceValue = VfxMaterial("M_VFX_Phaser", new Color(4.5f, 1.1f, 0.3f));
+            so.FindProperty("disruptorMaterial").objectReferenceValue = VfxMaterial("M_VFX_Disruptor", new Color(0.5f, 6f, 0.9f));
+            so.FindProperty("torpedoMaterial").objectReferenceValue = VfxMaterial("M_VFX_Torpedo", new Color(7f, 1.4f, 0.4f));
+            so.FindProperty("explosionMaterial").objectReferenceValue = VfxMaterial("M_VFX_Explosion", new Color(8f, 3.5f, 1f));
+            so.FindProperty("shieldMaterial").objectReferenceValue = VfxMaterial("M_VFX_ShieldFlash", new Color(1.6f, 3.2f, 7f));
+            so.FindProperty("shipRenderingLayer").intValue = ShipRenderingLayer;
+            so.ApplyModifiedPropertiesWithoutUndo();
 
             AssetDatabase.SaveAssets();
+        }
+
+        const int ShipRenderingLayer = 1;
+        const string KtingaModelPath = ProjectSetup.Root + "/Art/Ships/Klingon/SHIP_Klingon_Ktinga_Graybox.glb";
+        const string FreighterModelPath = ProjectSetup.Root + "/Art/Ships/Civilian/SHIP_Civil_KobayashiMaru_Graybox.glb";
+
+        /// <summary>
+        /// Wraps an imported ship model in a prefab that uses the project's URP Lit materials
+        /// (glTFast's own materials didn't take the space sun's light).
+        /// </summary>
+        static GameObject ShipPrefab(string modelPath, string name)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+            if (model == null)
+            {
+                Debug.LogError("[StarTrek] Missing ship model " + modelPath);
+                return null;
+            }
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            instance.name = name;
+            MaterialLibrary.ApplyTo(instance);
+            string folder = ProjectSetup.Root + "/Prefabs/Ships";
+            ProjectSetup.EnsureFolder(folder);
+            var prefab = PrefabUtility.SaveAsPrefabAsset(instance, $"{folder}/{name}.prefab");
+            UnityEngine.Object.DestroyImmediate(instance);
+            return prefab;
+        }
+
+        /// <summary>A glowing unlit HDR material for weapons and effects (bloom does the rest).</summary>
+        static Material VfxMaterial(string name, Color hdr)
+        {
+            string path = MaterialLibrary.Folder + "/" + name + ".mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = name };
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.SetColor("_BaseColor", hdr);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        static void AddImpactFx(AlertController alert, GameObject player)
+        {
+            var go = new GameObject("Bridge_ImpactFx");
+            var fx = go.AddComponent<BridgeImpactFx>();
+            var audio = LevelBuildKit.AddAudio(go, spatial: false);
+            var so = new SerializedObject(fx);
+            so.FindProperty("lights").objectReferenceValue = alert;
+            so.FindProperty("shake").objectReferenceValue = player.GetComponentInChildren<StarTrek.Player.CameraShake>();
+            so.FindProperty("audioSource").objectReferenceValue = audio;
+            so.FindProperty("sparkMaterial").objectReferenceValue = VfxMaterial("M_VFX_Sparks", new Color(6f, 3.6f, 1.2f));
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

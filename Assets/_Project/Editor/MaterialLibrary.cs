@@ -25,6 +25,11 @@ namespace StarTrek.EditorTools
             { "M_Fed_Display_Green", 1.1f },
             { "M_Fed_Display_Amber", 1.1f },
             { "M_Fed_Display_Red", 1.1f },
+            { "M_Kli_Torpedo", 9f },
+            { "M_Kli_Impulse", 6f },
+            { "M_Kli_Window", 4f },
+            { "M_Kli_WarpGlow", 4f },
+            { "M_Fre_Strobe", 12f },
         };
 
         static readonly int BaseColorFactor = Shader.PropertyToID("baseColorFactor");

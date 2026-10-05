@@ -151,6 +151,50 @@ namespace StarTrek.Tests
         }
 
         [Test]
+        public void AttackPattern_BringsTheBowOntoAStrafingCruiser()
+        {
+            WarpToTheFreighter();
+            ship.SpringAmbush();
+            ship.Execute(CommandId.ImpulseHalf);
+            ship.Execute(CommandId.AttackPattern);
+            float bestOffBow = 180f;
+            for (float t = 0f; t < 40f; t += 0.05f)
+            {
+                ship.Tick(0.05f);
+                var target = ship.SelectedHostile;
+                if (target == null)
+                    break;
+                bestOffBow = System.Math.Min(bestOffBow, System.Math.Abs(Flight.DeltaAngle(ship.Flight.Heading, ship.Flight.BearingTo(target))));
+            }
+            Assert.That(bestOffBow, Is.LessThan(Starship.TorpedoArcDegrees), "the torpedo launcher should come to bear");
+        }
+
+        [Test]
+        public void TheTestIsTunedToWin_ShieldsEventuallyFail()
+        {
+            // GAME_PROMPT §8: the Klingons are tuned to win. Fighting back with shields up still
+            // ends with the hull taking damage.
+            ship.Execute(CommandId.RaiseShields);
+            WarpToTheFreighter();
+            Run(Shields.RaiseSeconds + 1f);
+            ship.SpringAmbush();
+            ship.Execute(CommandId.ImpulseHalf);
+            ship.Execute(CommandId.AttackPattern);
+            Run(60f);
+            Assert.That(ship.Damage.HullAverage, Is.LessThan(1f));
+        }
+
+        [Test]
+        public void Klingons_HoldTheirStrafingRange()
+        {
+            WarpToTheFreighter();
+            ship.SpringAmbush();
+            Run(30f);
+            foreach (var k in ship.ActiveHostiles)
+                Assert.That(ship.Flight.DistanceTo(k), Is.GreaterThan(Starship.StrafeRangeKm * 0.3), k.Name + " stays out of knife range");
+        }
+
+        [Test]
         public void DestroyingACruiser_RemovesItAndReports()
         {
             WarpToTheFreighter();
@@ -168,6 +212,7 @@ namespace StarTrek.Tests
             Assert.That(destroyed, Is.SameAs(target));
             Assert.That(ship.Sensors.Contacts.Contains(target), Is.False);
             Assert.That(ship.ActiveHostiles.Count(), Is.EqualTo(2));
+            Assert.That(ship.Sensors.Selected.Kind, Is.EqualTo(ContactKind.Hostile), "fire control moves on to the next cruiser");
         }
     }
 }

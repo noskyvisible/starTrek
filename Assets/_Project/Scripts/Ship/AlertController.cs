@@ -98,17 +98,40 @@ namespace StarTrek.Ship
             LevelChanged?.Invoke(level);
         }
 
+        float flickerUntil, flickerStrength;
+        bool flickering;
+
+        /// <summary>Make the lights stutter for a moment (a hit on the ship). strength 0..1.</summary>
+        public void Flicker(float strength)
+        {
+            flickerUntil = Time.time + Mathf.Lerp(0.25f, 0.7f, strength);
+            flickerStrength = Mathf.Max(flickerStrength, Mathf.Clamp01(strength));
+        }
+
         void Update()
         {
+            bool flicker = Time.time < flickerUntil;
+            if (!flicker)
+                flickerStrength = 0f;
             if (Level != AlertLevel.Red)
+            {
+                if (flicker)
+                    foreach (var s in lightStates)
+                        s.Light.intensity = s.Intensity * FlickerFactor();
+                else if (flickering)
+                    foreach (var s in lightStates)
+                        s.Light.intensity = s.Intensity;
+                flickering = flicker;
                 return;
+            }
+            flickering = flicker;
 
             float pulse = 0.5f + 0.5f * Mathf.Cos(Time.time * 2f * Mathf.PI * pulseHz);
             // Film-style: the room stays dimly lit and only tints red as the panels flash.
             foreach (var s in lightStates)
             {
                 s.Light.color = Color.Lerp(s.Color, redColor, lightRedMix * pulse);
-                s.Light.intensity = s.Intensity * Mathf.Lerp(lightDimLow, lightDimHigh, pulse);
+                s.Light.intensity = s.Intensity * Mathf.Lerp(lightDimLow, lightDimHigh, pulse) * (flicker ? FlickerFactor() : 1f);
             }
 
             Color emission = redColor * (emissionPeak * Mathf.Lerp(pulseLow, 1f, pulse));
@@ -119,6 +142,8 @@ namespace StarTrek.Ship
                 slot.Renderer.SetPropertyBlock(block, slot.Index);
             }
         }
+
+        float FlickerFactor() => Random.value < 0.35f ? Mathf.Lerp(1f, 0.08f, flickerStrength) : Random.Range(0.75f, 1f);
 
         EmissiveSlot[] FindEmissiveSlots()
         {

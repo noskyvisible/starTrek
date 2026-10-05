@@ -68,7 +68,7 @@ namespace StarTrek.Simulation
     {
         public const float MaxStrength = 100f;
         public const float RaiseSeconds = 2f;
-        public const float RegenPerSecond = 8f;
+        public const float RegenPerSecond = 3f;
 
         readonly float[] strength = new float[4];
         float raiseTimer;
