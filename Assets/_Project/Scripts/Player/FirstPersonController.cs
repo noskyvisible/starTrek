@@ -48,6 +48,7 @@ namespace StarTrek.Player
         Vector2? scriptedMove;
 
         public bool IsSeated => seat != null;
+        public Seat CurrentSeat => seat;
 
         /// <summary>Display name of the first Stand binding, e.g. "Space".</summary>
         public string StandKeyLabel { get; private set; }

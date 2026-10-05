@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using StarTrek.Bridge;
 using StarTrek.Ship;
+using StarTrek.Simulation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
@@ -8,9 +11,10 @@ using UnityEngine.Rendering.Universal;
 namespace StarTrek.EditorTools
 {
     /// <summary>
-    /// Builds the Milestone 2 graybox bridge (Deck 1) from the Blender export: takeable seats,
-    /// Red Alert on the captain's armrest and at Tactical, locked turbolifts, lighting, and a live
-    /// starfield on the viewscreen. Rebuilding replaces the scene.
+    /// Builds the graybox bridge (Deck 1) from the Blender export: the ship simulation, a working
+    /// console at every station (buttons + live screens), captain's orders by looking, takeable seats,
+    /// Red Alert on the captain's armrest, locked turbolifts, lighting, and a live starfield on the
+    /// viewscreen. Rebuilding replaces the scene.
     /// </summary>
     public static class BridgeBuilder
     {
@@ -34,6 +38,25 @@ namespace StarTrek.EditorTools
             ("DamageControl", "Damage Control"),
         };
 
+        // The Kobayashi Maru simulator crew: fellow cadets (GAME_PROMPT §8).
+        static readonly Dictionary<StationRole, string> Officers = new Dictionary<StationRole, string>
+        {
+            { StationRole.Helm, "Cadet Rourke" }, { StationRole.Navigation, "Cadet Okafor" },
+            { StationRole.Tactical, "Cadet Haines" }, { StationRole.Science, "Cadet Varela" },
+            { StationRole.Communications, "Cadet Mbeki" }, { StationRole.Engineering, "Cadet Duffy" },
+            { StationRole.Environmental, "Cadet Lindqvist" }, { StationRole.Security, "Cadet Takeda" },
+            { StationRole.DamageControl, "Cadet Petrov" },
+        };
+
+        static readonly Dictionary<StationRole, Color> Accents = new Dictionary<StationRole, Color>
+        {
+            { StationRole.Helm, new Color(0.4f, 0.75f, 1f) }, { StationRole.Navigation, new Color(1f, 0.75f, 0.3f) },
+            { StationRole.Tactical, new Color(1f, 0.38f, 0.22f) }, { StationRole.Science, new Color(0.35f, 0.7f, 1f) },
+            { StationRole.Communications, new Color(1f, 0.7f, 0.25f) }, { StationRole.Engineering, new Color(1f, 0.55f, 0.15f) },
+            { StationRole.Environmental, new Color(0.35f, 1f, 0.5f) }, { StationRole.Security, new Color(1f, 0.8f, 0.3f) },
+            { StationRole.DamageControl, new Color(0.7f, 1f, 0.3f) },
+        };
+
         [MenuItem("StarTrek/Build Bridge Scene")]
         public static void Build()
         {
@@ -48,8 +71,10 @@ namespace StarTrek.EditorTools
 
             var lights = AddBridgeLights();
             var alert = LevelBuildKit.AddAlertController(level, lights);
-            AddSeats(level);
-            AddRedAlertButtons(level, alert);
+            var host = AddSimulation(alert);
+            var consoles = AddStationConsoles(level);
+            AddSeats(level, consoles);
+            AddRedAlertButtons(level, host);
             AddViewscreenFeed(spaceLayer);
 
             LevelBuildKit.SetUpEnvironment(inputs.Volume, new Color(0.07f, 0.07f, 0.08f));
@@ -57,7 +82,8 @@ namespace StarTrek.EditorTools
             // Spawn just off the starboard turbolift (155 deg), as if the player has stepped out onto the bridge.
             var spawn = OnRing(WallRadius - 1.2f, 155f) + Vector3.up * (RingHeight + 0.05f);
             var facing = Quaternion.LookRotation(new Vector3(-spawn.x, 0f, 3f - spawn.z), Vector3.up);
-            LevelBuildKit.AddPlayer(inputs.Controls, spawn, facing, ~(1 << spaceLayer));
+            var player = LevelBuildKit.AddPlayer(inputs.Controls, spawn, facing, ~(1 << spaceLayer));
+            AddCaptainTools(player);
 
             LevelBuildKit.SaveScene(ScenePath);
             Debug.Log($"[StarTrek] Built {ScenePath} with {lights.Count} lights, Space layer {spaceLayer}.");
@@ -93,29 +119,136 @@ namespace StarTrek.EditorTools
             return new Vector3(r * Mathf.Sin(a), 0f, r * Mathf.Cos(a));
         }
 
-        static void AddSeats(GameObject level)
+        static void AddSeats(GameObject level, Dictionary<StationRole, StationConsole> consoles)
         {
             // Unity local axes for every seat: +Z is the sitter's facing.
             LevelBuildKit.AddSeat(LevelBuildKit.Find(level, "PROP_Bridge_CaptainChair"), "Take the captain's chair",
                 new Vector3(0f, 1.17f, 0.05f), new Vector3(0.8f, 0f, 0f));
-            LevelBuildKit.AddSeat(LevelBuildKit.Find(level, "PROP_Seat_Helm"), "Take the helm",
-                new Vector3(0f, 1.15f, 0f), new Vector3(-0.75f, 0f, 0f));
-            LevelBuildKit.AddSeat(LevelBuildKit.Find(level, "PROP_Seat_Navigation"), "Take navigation",
-                new Vector3(0f, 1.15f, 0f), new Vector3(0.75f, 0f, 0f));
+            AddStationSeat(level, "PROP_Seat_Helm", "Take the helm", new Vector3(-0.75f, 0f, 0f), consoles[StationRole.Helm]);
+            AddStationSeat(level, "PROP_Seat_Navigation", "Take navigation", new Vector3(0.75f, 0f, 0f), consoles[StationRole.Navigation]);
             foreach (var (id, label) in Stations)
-                LevelBuildKit.AddSeat(LevelBuildKit.Find(level, "PROP_Seat_" + id), "Sit at " + label,
-                    new Vector3(0f, 1.15f, 0f), new Vector3(0f, 0f, -0.7f));
+                AddStationSeat(level, "PROP_Seat_" + id, "Sit at " + label, new Vector3(0f, 0f, -0.7f),
+                    consoles[(StationRole)Enum.Parse(typeof(StationRole), id)]);
         }
 
-        static void AddRedAlertButtons(GameObject level, AlertController alert)
+        static void AddStationSeat(GameObject level, string seatName, string prompt, Vector3 localExit, StationConsole console)
         {
-            var toggle = new UnityAction(alert.ToggleRedAlert);
-            // Red pad on the captain's left armrest.
+            var seat = LevelBuildKit.Find(level, seatName);
+            LevelBuildKit.AddSeat(seat, prompt, new Vector3(0f, 1.15f, 0f), localExit);
+            var link = seat.gameObject.AddComponent<StationLink>();
+            var so = new SerializedObject(link);
+            so.FindProperty("console").objectReferenceValue = console;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void AddRedAlertButtons(GameObject level, ShipSimHost host)
+        {
+            // Red pad on the captain's left armrest; Tactical has its own RED ALERT button.
             LevelBuildKit.AddHotspotButton(LevelBuildKit.Find(level, "PROP_Bridge_CaptainChair"), "BTN_RedAlert_Chair",
-                new Vector3(-0.38f, 0.67f, 0.09f), new Vector3(0.12f, 0.05f, 0.3f), "Red Alert", toggle);
-            // Button row on the Tactical console.
-            LevelBuildKit.AddHotspotButton(LevelBuildKit.Find(level, "STATION_Tactical"), "BTN_RedAlert_Tactical",
-                new Vector3(0f, 0.94f, -0.42f), new Vector3(1.1f, 0.06f, 0.14f), "Red Alert", toggle);
+                new Vector3(-0.38f, 0.67f, 0.09f), new Vector3(0.12f, 0.05f, 0.3f), "Red Alert", new UnityAction(host.ToggleRedAlert));
+        }
+
+        static ShipSimHost AddSimulation(AlertController alert)
+        {
+            var go = new GameObject("Ship_Simulation");
+            var host = go.AddComponent<ShipSimHost>();
+            var so = new SerializedObject(host);
+            so.FindProperty("alertDisplay").objectReferenceValue = alert;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return host;
+        }
+
+        /// <summary>A working console at every station. The helm desk is shared by Helm and Navigation.</summary>
+        static Dictionary<StationRole, StationConsole> AddStationConsoles(GameObject level)
+        {
+            var consoles = new Dictionary<StationRole, StationConsole>();
+
+            // Ring stations (Unity local: -Z faces the room; desk top slopes up toward the wall at ~19.5 deg).
+            foreach (var (id, _) in Stations)
+            {
+                var role = (StationRole)Enum.Parse(typeof(StationRole), id);
+                var desk = LevelBuildKit.Find(level, "STATION_" + id).gameObject;
+                var surface = Child(desk.transform, "ControlSurface", new Vector3(0f, 0.966f, -0.33f), Quaternion.Euler(-19.5f, 0f, 0f));
+                var left = Child(desk.transform, "ScreenAnchor_0", new Vector3(-0.355f, 1.85f, -0.085f), Quaternion.identity);
+                var right = Child(desk.transform, "ScreenAnchor_1", new Vector3(0.355f, 1.85f, -0.085f), Quaternion.identity);
+                consoles[role] = AddConsole(desk, role, surface, new Vector2(1.3f, 0.42f), new[] { left, right }, new Vector2(0.6f, 0.86f));
+            }
+
+            // Helm/navigation desk: one half per station, each with a pair of small monitors on the far edge.
+            var helmDesk = LevelBuildKit.Find(level, "STATION_Helm");
+            // The whole-desk mesh collider would not resolve to either half; each half gets its own colliders.
+            UnityEngine.Object.DestroyImmediate(helmDesk.GetComponent<MeshCollider>());
+            foreach (var (role, x) in new[] { (StationRole.Helm, -0.62f), (StationRole.Navigation, 0.62f) })
+            {
+                var half = new GameObject("CONSOLE_" + role);
+                half.transform.SetParent(helmDesk, false);
+                var body = half.AddComponent<BoxCollider>();
+                body.center = new Vector3(x, 0.34f, 0f);
+                body.size = new Vector3(1.2f, 0.68f, 0.6f);   // below the sloped top, so rays reach the buttons
+                var surface = Child(half.transform, "ControlSurface", new Vector3(x, 0.808f, 0.01f), Quaternion.Euler(-14.9f, 0f, 0f));
+                // Sloped top plate just under the buttons: rays that miss a button still find this station.
+                var top = Child(surface, "TopPlate", new Vector3(0f, -0.012f, 0f), Quaternion.identity);
+                top.gameObject.AddComponent<BoxCollider>().size = new Vector3(1.2f, 0.02f, 0.62f);
+                var a = Child(half.transform, "ScreenAnchor_0", new Vector3(x - 0.24f, 1.08f, 0.27f), Quaternion.Euler(15f, 0f, 0f));
+                var b = Child(half.transform, "ScreenAnchor_1", new Vector3(x + 0.24f, 1.08f, 0.27f), Quaternion.Euler(15f, 0f, 0f));
+                foreach (var anchor in new[] { a, b })
+                    MonitorBacking(anchor, new Vector2(0.48f, 0.32f));
+                consoles[role] = AddConsole(half, role, surface, new Vector2(0.96f, 0.4f), new[] { a, b }, new Vector2(0.46f, 0.3f));
+            }
+            return consoles;
+        }
+
+        static StationConsole AddConsole(GameObject owner, StationRole role, Transform surface, Vector2 surfaceSize,
+            Transform[] screens, Vector2 screenSize)
+        {
+            var console = owner.AddComponent<StationConsole>();
+            var audio = LevelBuildKit.AddAudio(owner, spatial: true);
+            var so = new SerializedObject(console);
+            so.FindProperty("role").enumValueIndex = (int)role;
+            so.FindProperty("officer").stringValue = Officers[role];
+            so.FindProperty("controlSurface").objectReferenceValue = surface;
+            so.FindProperty("surfaceSize").vector2Value = surfaceSize;
+            var anchors = so.FindProperty("screenAnchors");
+            anchors.arraySize = screens.Length;
+            for (int i = 0; i < screens.Length; i++)
+                anchors.GetArrayElementAtIndex(i).objectReferenceValue = screens[i];
+            so.FindProperty("screenSize").vector2Value = screenSize;
+            so.FindProperty("accent").colorValue = Accents[role];
+            so.FindProperty("audioSource").objectReferenceValue = audio;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return console;
+        }
+
+        static Transform Child(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
+        {
+            var t = new GameObject(name).transform;
+            t.SetParent(parent, false);
+            t.localPosition = localPosition;
+            t.localRotation = localRotation;
+            return t;
+        }
+
+        /// <summary>A dark plate behind a free-standing monitor screen.</summary>
+        static void MonitorBacking(Transform anchor, Vector2 size)
+        {
+            var plate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            plate.name = "MonitorBacking";
+            plate.transform.SetParent(anchor, false);
+            plate.transform.localPosition = new Vector3(0f, 0f, 0.012f);
+            plate.transform.localScale = new Vector3(size.x, size.y, 0.015f);
+            plate.GetComponent<MeshRenderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialLibrary.Folder + "/M_Fed_Bridge_Panel.mat");
+            GameObjectUtility.SetStaticEditorFlags(plate, StaticEditorFlags.BatchingStatic);
+        }
+
+        static void AddCaptainTools(GameObject player)
+        {
+            var orders = player.AddComponent<CaptainOrders>();
+            var so = new SerializedObject(orders);
+            so.FindProperty("view").objectReferenceValue = player.transform.Find("CameraPivot");
+            so.FindProperty("interactor").objectReferenceValue = player.GetComponent<StarTrek.Interaction.Interactor>();
+            so.FindProperty("body").objectReferenceValue = player.GetComponent<StarTrek.Player.FirstPersonController>();
+            so.ApplyModifiedPropertiesWithoutUndo();
+            player.AddComponent<BridgeMessageLog>();
         }
 
         static void AddViewscreenFeed(int spaceLayer)

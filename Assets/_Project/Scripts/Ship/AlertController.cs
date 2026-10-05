@@ -1,18 +1,14 @@
 using System.Collections.Generic;
 using StarTrek.Audio;
+using StarTrek.Simulation;
 using UnityEngine;
 
 namespace StarTrek.Ship
 {
-    public enum AlertLevel
-    {
-        Normal,
-        Red
-    }
-
     /// <summary>
-    /// Ship-wide alert state. Red Alert tints and pulses the interior lights and emissive light
-    /// panels and loops the klaxon; Normal restores everything.
+    /// Shows the ship's alert state in the room. Red Alert tints and pulses the interior lights and
+    /// emissive light panels and loops the klaxon; Normal (and Yellow, for now) restores everything.
+    /// On the bridge the level comes from the ship simulation; in test scenes it can be toggled directly.
     /// </summary>
     public class AlertController : MonoBehaviour
     {
