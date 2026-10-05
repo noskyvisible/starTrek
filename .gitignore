@@ -35,3 +35,10 @@ sysinfo.txt
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Local secrets (API keys) - never commit
+.secrets/
+.env
+
+# MCP screenshot captures
+/Captures/

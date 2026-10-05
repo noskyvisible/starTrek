@@ -3,19 +3,16 @@
 Read `docs/GAME_PROMPT.md` before any task. It is the design brief and the source of truth.
 
 ## Environment
-- Unity **6000.6.4f1**, project root = repo root. Gameplay code lives in `Assets/_Project/Scripts/...` (folder layout in GAME_PROMPT §10).
-- Local sessions have MCP for Unity (`UnityMCP`, HTTP on 127.0.0.1:8080) and Blender MCP. Start Unity before Claude Code, or the Unity tools won't load.
+- All work is local. Don't use cloud sessions for this project.
+- Unity **6000.6.4f1** with **URP (HDR)**, project root = repo root. Gameplay code lives in `Assets/_Project/Scripts/...` (folder layout in GAME_PROMPT §10).
+- MCP for Unity (`UnityMCP`, HTTP on 127.0.0.1:8080) and Blender MCP (Blender 5.2, addon on port 9876). Start Unity and Blender before Claude Code, or their tools won't load.
+- Dev machine: Intel UHD 620 laptop. Respect the Low quality tier; avoid per-frame allocations.
 
-## Cloud sessions (no Unity Editor, no Blender)
-Cloud sessions can't open the Editor, compile Unity code, enter Play mode or use either MCP. So:
-- Write **code and docs only**: no scenes, prefabs, materials or binary assets.
-- **Do not create `.meta` files.** The local Editor generates them and they get committed from there.
-- Keep simulation logic in **pure C# with no `UnityEngine` references** (assembly definitions with `"noEngineReferences": true`). Unity-facing code (MonoBehaviours, ScriptableObject wrappers) stays a thin layer on top.
-- Check the pure C# code with `dotnet` from a test project **outside `Assets/`** (e.g. `Tools/SimTests/`) that includes the core source files. Add a `.gitignore` exception for that `.csproj`, because `*.csproj` is ignored. Run the tests before you finish.
-- Also write Unity EditMode tests for Unity-facing code. They get run locally.
-- Work on a branch and open a PR. In the PR, say what was verified with dotnet and what still needs checking in the Editor.
-
-## Conventions
-- 1 Unity unit = 1 m. Namespaces start with `StarTrek.` (e.g. `StarTrek.Ship`, `StarTrek.Crew`).
-- Systems are data-driven and separate from visuals (GAME_PROMPT §11, §13).
-- Respect the Low quality tier (Intel UHD 620 laptop): avoid per-frame allocations in simulation code.
+## Working rules
+- **Keep the user able to watch.** Build in the open in Blender and Unity, and point the viewport at the current work.
+- **Devlog:** add to `devlog/YYYY-MM-DD.md` as work happens (Done / Decisions / Problems / Next), with screenshots in `devlog/images/`.
+- **Art source:** .blend files go in `Art_Source/Blender/`, outside `Assets/`. Export to Unity through the MCP for Unity Blender bridge (glb).
+- **Secrets:** API keys live in `.secrets/` (git-ignored) and in the Unity secure key store. Never commit, print or paste a key.
+- **AI generation:** Tripo (via `generate_model`) is for textured 3D hero props, used only after the graybox plays well. Generated assets must be original. Never imitate film or show assets.
+- Systems are data-driven and separate from visuals (GAME_PROMPT §11, §13). Keep simulation logic in plain C# where practical, so it can be unit-tested.
+- 1 Unity unit = 1 m. Namespaces start with `StarTrek.` (e.g. `StarTrek.Ship`, `StarTrek.Player`).

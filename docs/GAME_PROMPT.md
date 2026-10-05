@@ -1,7 +1,7 @@
 # MASTER PROMPT — Star Trek Fan Game ("Captain's Chair")
 
 > This is the north-star brief for every build session. Read it before starting any task.
-> Tools: **Blender** (via Blender MCP) for all models, **Unity 6.3 LTS** (via MCP for Unity) for all gameplay.
+> Tools: **Blender** (via Blender MCP) for all models, **Unity 6.6 (6000.6.4f1)** (via MCP for Unity) for all gameplay.
 > This is a non-commercial fan project. Create every asset, sound and piece of music ourselves. Never rip models, audio, music or footage from the films or shows.
 
 ---
@@ -60,11 +60,11 @@ The target is AAA in look, sound and play: cinematic lighting, dense hull and in
 - It must feel like the opposite of the bright, orderly Federation interiors.
 
 ### 3.5 Rendering targets
-- **Pipeline:** **HDRP** for physically based lighting, volumetric fog, ray-traced reflections where the hardware supports it, and high-quality post-processing.
-- **Space:** a dense HDR starfield, nebula volumes, a nearby planet or sun as the key light, bloom on engines and weapons, lens flare, and screen-space and volumetric light scatter.
+- **Pipeline:** **URP with HDR rendering**. It was chosen over HDRP so development runs smoothly on the Intel UHD 620 laptop. Use HDR colour, bloom, tone mapping, lens flares, decals, SSAO and post-processing volumes. Where HDRP would use real volumetrics, fake them with fog cards, light-shaft meshes and particle haze.
+- **Space:** a dense HDR starfield, nebula volumes, a nearby planet or sun as the key light, bloom on engines and weapons, lens flare, and screen-space light scatter (faked light shafts).
 - **Combat VFX:** phaser beams that **trace across the hull** to the target, torpedoes as glowing pulsating orbs, **shield bubbles that light up at the impact point** and ripple out, hull breaches that vent atmosphere and burning debris, and a warp jump with streaking starlight.
 - **Bridge damage:** consoles that **explode in sparks**, falling ceiling panels, crew thrown from their stations, smoke layering in the room, emergency lighting, and camera shake.
-- **Quality tiers (required):** **Ultra** (RTX-class GPU, ray tracing), **High**, and **Low** (must run on the Intel UHD 620 development laptop: no ray tracing, baked lighting, reduced volumetrics, render scale 50–70%). Every feature must degrade gracefully.
+- **Quality tiers (required):** **Ultra** (dedicated GPU: high-resolution shadows, SSAO, MSAA, all post effects), **High**, and **Low** (must run on the Intel UHD 620 development laptop: baked lighting, cheap shadows, no SSAO, minimal post-processing, render scale about 0.7). Every feature must degrade gracefully.
 
 ---
 
@@ -200,7 +200,7 @@ The first playable level and the quality benchmark for everything else. It intro
 - **Units and scale:** 1 Blender unit = 1 m. Forward = −Y in Blender → +Z in Unity (export with the matching FBX axis settings). Apply all transforms before exporting.
 - **Naming:** `SHIP_Constitution_Hull_LOD0`, `PROP_Bridge_CaptainChair`, `CHAR_Klingon_Warrior`, `ENV_Corridor_Straight_4m`.
 - **Modular interiors:** a kit of corridor, wall, door and room pieces on a **2 m grid**, so the ship can be assembled quickly in Unity.
-- **Textures:** **trim sheets and tileable materials** for the hull (Aztec mask plus panel lines plus emissive window masks). Use unique bakes only for hero props (captain's chair, warp core, consoles). PBR metallic/roughness, HDRP Lit.
+- **Textures:** **trim sheets and tileable materials** for the hull (Aztec mask plus panel lines plus emissive window masks). Use unique bakes only for hero props (captain's chair, warp core, consoles). PBR metallic/roughness, URP Lit.
 - **Emissive maps** for windows, nacelle grilles, Bussard collectors, the deflector, console screens and LCARS-style displays (create our own display style rather than copying Okuda).
 - **LODs:** LOD0–LOD3 for every ship, plus a far-distance impostor.
 - **Damage:** ship hull sections are separate pieces so they can **break apart** and show **damage-decal** states.
@@ -213,7 +213,7 @@ Assets/_Project/
   Audio/{Music,SFX,VO}/
   Scenes/{Bootstrap,KobayashiMaru,Ship_Decks/*}/
   Scripts/{Ship,Crew,Combat,Ground,Boarding,Turbolift,UI,Audio,Core}/
-  Prefabs/  Materials/  Settings/(HDRP quality tiers)
+  Prefabs/  Materials/  Settings/(URP quality tiers)
 ```
 
 ---
@@ -234,7 +234,7 @@ Assets/_Project/
 
 ## 12. Build Order (Milestones)
 
-1. **Foundations:** HDRP project, quality tiers, folder structure, first-person controller, interaction system.
+1. **Foundations:** URP project (HDR), quality tiers, folder structure, first-person controller, interaction system.
 2. **The bridge:** a hero-quality refit bridge (Blender), lighting, working consoles and viewscreen, Red Alert state.
 3. **Ship simulation and space combat:** player ship and one K't'inga (graybox models first), shields, phasers, torpedoes, helm AI, command wheel.
 4. **Turbolift and the deck network:** bridge ↔ turbolift ↔ corridor ↔ engineering with the warp core.
