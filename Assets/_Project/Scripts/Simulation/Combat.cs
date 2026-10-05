@@ -120,6 +120,13 @@ namespace StarTrek.Simulation
         public bool AmbushSprung { get; private set; }
         public bool HullCritical => Damage.HullAverage <= 0.25f;
 
+        /// <summary>The mission keeps the cruisers cloaked until its rescue beat is over.</summary>
+        public bool HoldAmbush { get; set; }
+        /// <summary>Scales Klingon damage to the player (the mission eases off while the bridge is boarded).</summary>
+        public float HostileFireScale { get; set; } = 1f;
+        /// <summary>A reprogrammed simulation: the cruisers' shields never work.</summary>
+        public bool HostileShieldsFail { get; set; }
+
         float ambushTimer = -1f;
         int nextProjectileId;
         float sinceTacticalReport = 99f, sinceDamageReport = 99f;
@@ -296,7 +303,7 @@ namespace StarTrek.Simulation
 
         void TickAmbush(float dt)
         {
-            if (AmbushSprung || DistressShip == null)
+            if (AmbushSprung || DistressShip == null || HoldAmbush)
                 return;
             if (ambushTimer < 0f)
             {
@@ -331,21 +338,90 @@ namespace StarTrek.Simulation
                 double rad = bearing * Math.PI / 180.0;
                 c.X = Flight.X + Math.Sin(rad) * r;
                 c.Y = Flight.Y + Math.Cos(rad) * r;
-                c.Cloaked = false;
-                c.Combat = new HostileState
-                {
-                    Heading = Flight.Normalise(bearing + 180f),
-                    SpeedKmS = KlingonCruiseKmS * 0.5,
-                    OrbitSign = i % 2 == 0 ? 1f : -1f,
-                    DisruptorCooldown = 1.5f + i * 0.7f,
-                    TorpedoCooldown = 6f + i * 2f,
-                };
-                c.ShieldPercent = 1f;
+                Decloak(c, bearing, i);
                 i++;
             }
             SelectNextHostile();
             Say(StationRole.Science, $"Captain! Klingon warships de-cloaking! {i} K't'inga-class battle cruisers!");
+            if (HostileShieldsFail && i > 0)
+                Say(StationRole.Science, "Wait... their shields aren't coming up. None of them. That's not possible.");
         }
+
+        void Decloak(Contact c, float bearing, int index)
+        {
+            c.Cloaked = false;
+            c.Combat = new HostileState
+            {
+                Heading = Flight.Normalise(bearing + 180f),
+                SpeedKmS = KlingonCruiseKmS * 0.5,
+                OrbitSign = index % 2 == 0 ? 1f : -1f,
+                DisruptorCooldown = 1.5f + index * 0.7f,
+                TorpedoCooldown = 6f + index * 2f,
+            };
+            if (HostileShieldsFail)
+            {
+                c.Combat.ShieldsDisabled = true;
+                c.Combat.Shields = 0f;
+            }
+            c.ShieldPercent = c.Combat.Shields / 100f;
+        }
+
+        int ActiveHostilesCount()
+        {
+            int n = 0;
+            foreach (var _ in ActiveHostiles)
+                n++;
+            return n;
+        }
+
+        /// <summary>More cruisers de-cloak around the ship: the test does not let you win.</summary>
+        public int DecloakReinforcements(int count)
+        {
+            float[] offsets = { 130f, -130f, 180f };
+            for (int i = 0; i < count; i++)
+            {
+                var c = new Contact
+                {
+                    Name = "Klingon cruiser " + (char)('D' + reinforcementCount++),
+                    Description = "K't'inga-class battle cruiser",
+                    Kind = ContactKind.Hostile,
+                    ScanReport = "K't'inga-class battle cruiser. Disruptors charged, shields at full.",
+                };
+                float bearing = Flight.Normalise(Flight.Heading + offsets[i % offsets.Length]);
+                double rad = bearing * Math.PI / 180.0;
+                c.X = Flight.X + Math.Sin(rad) * 90000;
+                c.Y = Flight.Y + Math.Cos(rad) * 90000;
+                Sensors.Contacts.Add(c);
+                Decloak(c, bearing, i);
+            }
+            SelectNextHostile();
+            Say(StationRole.Science, count == 1 ? "Another Klingon cruiser de-cloaking!" : $"{count} more Klingon cruisers de-cloaking, Captain!");
+            return count;
+        }
+
+        /// <summary>The nearest fighting cruiser is lost with the ship (auto-destruct). Returns it, or null.</summary>
+        public Contact DestroyNearestHostile()
+        {
+            Contact nearest = null;
+            double best = double.MaxValue;
+            foreach (var c in ActiveHostiles)
+            {
+                double d = Flight.DistanceTo(c);
+                if (d < best)
+                {
+                    best = d;
+                    nearest = c;
+                }
+            }
+            if (nearest == null)
+                return null;
+            nearest.Combat.Destroyed = true;
+            ContactDestroyed?.Invoke(nearest);
+            Sensors.Contacts.Remove(nearest);
+            return nearest;
+        }
+
+        int reinforcementCount;
 
         /// <summary>Point sensors (and so fire control) at the nearest fighting enemy, if any.</summary>
         void SelectNextHostile()
@@ -387,7 +463,7 @@ namespace StarTrek.Simulation
                 {
                     p.Done = true;
                     if (p.Target == null)
-                        DamagePlayer(p.Source, p.Source != null ? p.Source.X : p.X, p.Source != null ? p.Source.Y : p.Y, p.Damage * DamageScale(p));
+                        DamagePlayer(p.Source, p.Source != null ? p.Source.X : p.X, p.Source != null ? p.Source.Y : p.Y, p.Damage * DamageScale(p) * HostileFireScale);
                     else
                         DamageHostile(p.Target, p.Damage);
                     continue;

@@ -367,6 +367,7 @@ namespace StarTrek.Simulation
         }
 
         internal void Damage(ShipSystem s, float amount) => system[(int)s] = Math.Max(0f, system[(int)s] - amount);
+        internal void RestoreTo(ShipSystem s, float atLeast) => system[(int)s] = Math.Max(system[(int)s], atLeast);
         internal void DamageHull(HullSection h, float amount) => hull[(int)h] = Math.Max(0f, hull[(int)h] - amount * (StructuralBoost ? 0.6f : 1f));
 
         /// <returns>A finished-repair message on the tick a repair completes, else null.</returns>

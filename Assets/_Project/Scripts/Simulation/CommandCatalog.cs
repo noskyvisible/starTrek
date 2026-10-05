@@ -36,7 +36,9 @@ namespace StarTrek.Simulation
         // Security
         IntruderAlert, ForceFieldsBridge, ForceFieldsEngineering, SecurityToBridge, SecurityToEngineering, LockTurbolifts,
         // Damage control
-        RepairShields, RepairWeapons, RepairEngines, RepairHull, SealBulkheads, StructuralIntegrityBoost
+        RepairShields, RepairWeapons, RepairEngines, RepairHull, SealBulkheads, StructuralIntegrityBoost,
+        // Mission orders (appended so existing values keep their numbers): carried out by the running Mission.
+        AwayTeam, BeamSurvivors, Surrender, AutoDestruct
     }
 
     /// <summary>How a station button is coloured: routine, weapons, or alert/emergency.</summary>
@@ -117,7 +119,8 @@ namespace StarTrek.Simulation
                 D(CommandId.JamComms, "JAM COMMS", "Jam their communications", CommandStyle.Alert),
                 D(CommandId.CallStarfleet, "CALL STARFLEET", "Contact Starfleet Command"),
                 D(CommandId.ShipwideIntercom, "SHIP-WIDE", "Open a ship-wide channel"),
-                D(CommandId.CloseChannel, "CLOSE CHANNEL", "Close the channel"));
+                D(CommandId.CloseChannel, "CLOSE CHANNEL", "Close the channel"),
+                D(CommandId.Surrender, "SURRENDER", "Signal our surrender", CommandStyle.Alert));
             Add(StationRole.Engineering,
                 D(CommandId.PowerToShields, "POWER: SHIELDS", "More power to the shields"),
                 D(CommandId.PowerToWeapons, "POWER: WEAPONS", "Divert power to weapons", CommandStyle.Weapons),
@@ -125,7 +128,8 @@ namespace StarTrek.Simulation
                 D(CommandId.BalancePower, "BALANCE POWER", "Balance the power distribution"),
                 D(CommandId.EmergencyPower, "EMERGENCY POWER", "Emergency power", CommandStyle.Alert),
                 D(CommandId.CoolWarpCore, "VENT CORE HEAT", "Bring the core temperature down"),
-                D(CommandId.EngineeringReport, "STATUS", "Engineering, report"));
+                D(CommandId.EngineeringReport, "STATUS", "Engineering, report"),
+                D(CommandId.AutoDestruct, "AUTO-DESTRUCT", "Set the auto-destruct", CommandStyle.Alert));
             Add(StationRole.Environmental,
                 D(CommandId.BoostLifeSupport, "LIFE SUPPORT+", "Boost life support"),
                 D(CommandId.BoostInertialDampers, "DAMPERS+", "Reinforce the inertial dampers"),
@@ -138,7 +142,9 @@ namespace StarTrek.Simulation
                 D(CommandId.ForceFieldsEngineering, "FIELDS: ENGRG", "Force fields in engineering"),
                 D(CommandId.SecurityToBridge, "TEAM TO BRIDGE", "Security to the bridge"),
                 D(CommandId.SecurityToEngineering, "TEAM TO ENGRG", "Security to engineering"),
-                D(CommandId.LockTurbolifts, "LOCK TURBOLIFTS", "Lock out the turbolifts"));
+                D(CommandId.LockTurbolifts, "LOCK TURBOLIFTS", "Lock out the turbolifts"),
+                D(CommandId.AwayTeam, "AWAY TEAM", "Assemble an away team"),
+                D(CommandId.BeamSurvivors, "BEAM SURVIVORS", "Beam the survivors aboard"));
             Add(StationRole.DamageControl,
                 D(CommandId.RepairShields, "REPAIR SHIELDS", "Repair crews to the shield generators"),
                 D(CommandId.RepairWeapons, "REPAIR WEAPONS", "Repair crews to weapons"),

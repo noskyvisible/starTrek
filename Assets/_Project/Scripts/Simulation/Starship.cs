@@ -50,6 +50,14 @@ namespace StarTrek.Simulation
 
         public event Action<ShipEvent> EventRaised;
         public event Action<AlertLevel> AlertChanged;
+        /// <summary>Every command after it was carried out or refused, whoever gave it.</summary>
+        public event Action<CommandId, CommandResult> CommandExecuted;
+
+        /// <summary>
+        /// The running mission's handler for its own orders (away team, surrender, auto-destruct).
+        /// Returns null to let the ship handle the command as usual.
+        /// </summary>
+        public Func<CommandId, CommandResult?> MissionOrders { get; set; }
 
         bool warnedHeat, warnedCritical;
 
@@ -59,9 +67,19 @@ namespace StarTrek.Simulation
             Registry = registry;
         }
 
+        /// <summary>A station reports something on its own (used by the mission director).</summary>
+        public void Report(StationRole station, string text) => Say(station, text);
+
         // ------------------------------------------------------------------ commands
 
         public CommandResult Execute(CommandId id)
+        {
+            var result = MissionOrders?.Invoke(id) ?? ExecuteShip(id);
+            CommandExecuted?.Invoke(id, result);
+            return result;
+        }
+
+        CommandResult ExecuteShip(CommandId id)
         {
             var station = CommandCatalog.Get(id).Station;
             switch (id)
@@ -359,6 +377,13 @@ namespace StarTrek.Simulation
                 case CommandId.StructuralIntegrityBoost:
                     Damage.StructuralBoost = !Damage.StructuralBoost;
                     return Ok(station, Damage.StructuralBoost ? "Reinforcing structural integrity." : "Structural integrity field to normal.");
+
+                // Mission orders, when no mission takes them
+                case CommandId.AwayTeam: return No(station, "There's nowhere to send an away team, Captain.");
+                case CommandId.BeamSurvivors: return No(station, "No one to beam aboard, Captain.");
+                case CommandId.Surrender:
+                    return No(station, ActiveHostilesCount() == 0 ? "Surrender to whom, Captain?" : "They're not answering, Captain.");
+                case CommandId.AutoDestruct: return No(station, "Auto-destruct is locked out, Captain.");
             }
             return No(station, "I don't understand the order, Captain.");
         }
@@ -460,7 +485,7 @@ namespace StarTrek.Simulation
             return $"Gravitic mine fragments around the {DistressShip.Name}. That matches their distress call.";
         }
 
-        void SetAlert(AlertLevel level)
+        internal void SetAlert(AlertLevel level)
         {
             if (level == Alert)
                 return;
