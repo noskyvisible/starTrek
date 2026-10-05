@@ -1,4 +1,5 @@
 using StarTrek.Core;
+using StarTrek.Interaction;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,12 +34,22 @@ namespace StarTrek.Player
         [SerializeField] float eyeBelowTop = 0.12f;
         [SerializeField] float heightChangeSpeed = 4f;
 
+        [Header("Seating")]
+        [Tooltip("How far the view can turn left or right from the seat's facing while seated.")]
+        [SerializeField] float seatedYawLimit = 110f;
+
         CharacterController controller;
         InputActionMap map;
-        InputAction move, look, lookStick, sprint, crouch, pause;
+        InputAction move, look, lookStick, sprint, crouch, pause, stand;
         Vector3 velocity;
-        float yaw, pitch, height;
+        float yaw, pitch, height, seatYaw;
         bool inputEnabled = true;
+        Seat seat;
+
+        public bool IsSeated => seat != null;
+
+        /// <summary>Display name of the first Stand binding, e.g. "Space".</summary>
+        public string StandKeyLabel { get; private set; }
 
         /// <summary>False while a menu, console screen or cutscene owns the input.</summary>
         public bool InputEnabled
@@ -57,6 +68,8 @@ namespace StarTrek.Player
             sprint = map.FindAction("Sprint", true);
             crouch = map.FindAction("Crouch", true);
             pause = map.FindAction("Pause", true);
+            stand = map.FindAction("Stand", true);
+            StandKeyLabel = stand.GetBindingDisplayString(0);
 
             yaw = transform.eulerAngles.y;
             height = standHeight;
@@ -87,7 +100,46 @@ namespace StarTrek.Player
 
             if (inputEnabled)
                 Look();
+
+            if (seat != null)
+            {
+                if (inputEnabled && stand.WasPressedThisFrame())
+                    Stand();
+                return;
+            }
             Move();
+        }
+
+        /// <summary>Sit at a seat: the view moves to its eye point and walking stops.</summary>
+        public void SitAt(Seat target)
+        {
+            if (seat != null || target == null)
+                return;
+            seat = target;
+            controller.enabled = false;
+            velocity = Vector3.zero;
+            height = standHeight;
+            ApplyHeight();
+
+            Transform eye = target.EyePoint;
+            // Keep the pivot at its standing height and drop the body so the eye lands on the seat's eye point.
+            transform.position = eye.position - Vector3.up * cameraPivot.localPosition.y;
+            seatYaw = yaw = eye.eulerAngles.y;
+            pitch = 0f;
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            cameraPivot.localRotation = Quaternion.identity;
+        }
+
+        /// <summary>Get up and step to the seat's exit point.</summary>
+        public void Stand()
+        {
+            if (seat == null)
+                return;
+            Transform exit = seat.ExitPoint;
+            seat.Vacate();
+            seat = null;
+            transform.position = exit.position;
+            controller.enabled = true;
         }
 
         void Look()
@@ -95,6 +147,8 @@ namespace StarTrek.Player
             Vector2 delta = look.ReadValue<Vector2>() * mouseSensitivity
                           + lookStick.ReadValue<Vector2>() * (stickLookSpeed * Time.deltaTime);
             yaw += delta.x;
+            if (seat != null)
+                yaw = seatYaw + Mathf.Clamp(Mathf.DeltaAngle(seatYaw, yaw), -seatedYawLimit, seatedYawLimit);
             pitch = Mathf.Clamp(pitch - delta.y, -pitchLimit, pitchLimit);
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);

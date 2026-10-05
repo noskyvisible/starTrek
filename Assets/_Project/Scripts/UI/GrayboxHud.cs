@@ -1,4 +1,5 @@
 using StarTrek.Interaction;
+using StarTrek.Player;
 using UnityEngine;
 
 namespace StarTrek.UI
@@ -16,7 +17,9 @@ namespace StarTrek.UI
         Texture2D dot;
         string shownPrompt;
         string text;
+        string standHint;
         int styledForHeight;
+        FirstPersonController player;
 
         void OnGUI()
         {
@@ -28,6 +31,17 @@ namespace StarTrek.UI
             GUI.color = new Color(1f, 1f, 1f, 0.7f);
             GUI.DrawTexture(new Rect(cx - 2f, cy - 2f, 4f, 4f), dot);
             GUI.color = Color.white;
+
+            if (player == null && interactor != null)
+                player = interactor.GetComponent<FirstPersonController>();
+            if (player != null && player.IsSeated)
+            {
+                if (standHint == null)
+                    standHint = "[" + player.StandKeyLabel + "]  Stand up";
+                var hintRect = new Rect(0f, Screen.height * 0.88f, Screen.width, style.fontSize * 2f);
+                style.normal.textColor = new Color(promptColor.r, promptColor.g, promptColor.b, 0.7f);
+                GUI.Label(hintRect, standHint, style);
+            }
 
             IInteractable current = interactor ? interactor.Current : null;
             if (current == null)

@@ -21,7 +21,13 @@ namespace StarTrek.Ship
         [SerializeField] Material[] emissiveMaterials;
         [SerializeField] Color redColor = new Color(1f, 0.07f, 0.04f);
         [SerializeField] float pulseHz = 0.75f;
-        [SerializeField, Range(0f, 1f)] float pulseLow = 0.25f;
+        [Tooltip("Room lights are dimmed to this fraction of normal at the pulse low point...")]
+        [SerializeField, Range(0f, 1f)] float lightDimLow = 0.3f;
+        [Tooltip("...and to this fraction at the pulse peak.")]
+        [SerializeField, Range(0f, 1f)] float lightDimHigh = 0.55f;
+        [Tooltip("How far the room lights shift toward red at the pulse peak (0 = stay white).")]
+        [SerializeField, Range(0f, 1f)] float lightRedMix = 0.55f;
+        [SerializeField, Range(0f, 1f)] float pulseLow = 0.15f;
         [SerializeField] float emissionPeak = 4f;
         [SerializeField] AudioSource klaxonSource;
 
@@ -102,14 +108,14 @@ namespace StarTrek.Ship
                 return;
 
             float pulse = 0.5f + 0.5f * Mathf.Cos(Time.time * 2f * Mathf.PI * pulseHz);
-            float k = Mathf.Lerp(pulseLow, 1f, pulse);
+            // Film-style: the room stays dimly lit and only tints red as the panels flash.
             foreach (var s in lightStates)
             {
-                s.Light.color = redColor;
-                s.Light.intensity = s.Intensity * k;
+                s.Light.color = Color.Lerp(s.Color, redColor, lightRedMix * pulse);
+                s.Light.intensity = s.Intensity * Mathf.Lerp(lightDimLow, lightDimHigh, pulse);
             }
 
-            Color emission = redColor * (emissionPeak * k);
+            Color emission = redColor * (emissionPeak * Mathf.Lerp(pulseLow, 1f, pulse));
             foreach (var slot in slots)
             {
                 slot.Renderer.GetPropertyBlock(block, slot.Index);

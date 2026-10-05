@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/Test/TestCorridor.unity
     guid: 4272742a6bf2abc4ebf3322be69e2814
+  - enabled: 1
+    path: Assets/_Project/Scenes/Ship_Decks/Deck01_Bridge.unity
+    guid: bcea8c8bc3f03f0428e1843ed0e4db2b
   m_configObjects: {}
