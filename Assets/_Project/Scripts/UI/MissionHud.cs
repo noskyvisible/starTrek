@@ -11,12 +11,47 @@ namespace StarTrek.UI
     public class MissionHud : MonoBehaviour
     {
         GameSession session;
-        GUIStyle objectiveTitle, objectiveText, countdown;
+        GUIStyle objectiveTitle, objectiveText, countdown, controlsHint;
         int styledForHeight;
         Texture2D white;
         readonly System.Random rng = new System.Random(1701);
 
+        string toast;
+        float toastUntil;
+
         void Awake() => session = GetComponent<GameSession>();
+
+        bool showControls;
+        float startedAt;
+        GUIStyle controlsStyle;
+
+        const string Controls =
+            "<b>CONTROLS</b>\n" +
+            "WASD  move     Mouse  look     Shift  run     C  crouch\n" +
+            "E  use, sit, press console buttons     Space  stand up\n" +
+            "Look at a bridge station, then 1-8  give that station an order\n" +
+            "F  hand phaser     Click  fire     X  stun / kill\n" +
+            "T  tricorder (hold it on something to scan)\n" +
+            "V  communicator (away team: call for transport)\n" +
+            "Esc  free the mouse     F10  graphics quality     F1  this panel";
+
+        void Start() => startedAt = Time.unscaledTime;
+
+        void Update()
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null)
+                return;
+            if (kb.f1Key.wasPressedThisFrame)
+                showControls = !showControls;
+            // F10 cycles the graphics tiers (Low / High / Ultra), for laptops and stronger machines alike.
+            if (!kb.f10Key.wasPressedThisFrame)
+                return;
+            int next = (QualitySettings.GetQualityLevel() + 1) % QualitySettings.names.Length;
+            QualitySettings.SetQualityLevel(next, true);
+            toast = "Graphics: " + QualitySettings.names[next];
+            toastUntil = Time.unscaledTime + 2.5f;
+        }
 
         void OnGUI()
         {
@@ -33,6 +68,12 @@ namespace StarTrek.UI
             }
             if (session.Cover > 0.001f)
                 DrawCover(session.Cover, session.CoverStyle);
+            if (showControls)
+                DrawControls();
+            else if (Time.unscaledTime - startedAt < 12f && session.Cover < 0.5f)
+                Shadowed(new Rect(0f, Screen.height * 0.94f, Screen.width * 0.98f, objectiveText.fontSize * 1.6f), "F1  Controls", controlsHint, new Color(0.8f, 0.85f, 0.95f, 0.8f));
+            if (toast != null && Time.unscaledTime < toastUntil)
+                Shadowed(new Rect(0f, Screen.height * 0.12f, Screen.width, countdown.fontSize * 1.5f), toast, countdown, new Color(0.8f, 0.9f, 1f));
         }
 
         void DrawObjective(Mission mission)
@@ -89,6 +130,20 @@ namespace StarTrek.UI
             GUI.color = Color.white;
         }
 
+        void DrawControls()
+        {
+            float w = Mathf.Min(Screen.width * 0.6f, Screen.height * 1.1f);
+            float h = controlsStyle.CalcHeight(new GUIContent(Controls), w - 32f) + 28f;
+            var r = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
+            GUI.color = new Color(0.02f, 0.03f, 0.06f, 0.88f);
+            GUI.DrawTexture(r, white);
+            GUI.color = new Color(1f, 0.62f, 0.2f);
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, 3f), white);
+            GUI.color = Color.white;
+            controlsStyle.normal.textColor = new Color(0.9f, 0.92f, 1f);
+            GUI.Label(new Rect(r.x + 16f, r.y + 14f, w - 32f, h - 20f), Controls, controlsStyle);
+        }
+
         void Shadowed(Rect r, string text, GUIStyle style, Color colour)
         {
             style.normal.textColor = new Color(0f, 0f, 0f, 0.8f * colour.a);
@@ -104,6 +159,8 @@ namespace StarTrek.UI
             objectiveTitle = new GUIStyle(GUI.skin.label) { fontSize = size, fontStyle = FontStyle.Bold };
             objectiveText = new GUIStyle(GUI.skin.label) { fontSize = size, wordWrap = true };
             countdown = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(size * 1.9f), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            controlsStyle = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(size * 1.1f), richText = true, wordWrap = true };
+            controlsHint = new GUIStyle(GUI.skin.label) { fontSize = size, alignment = TextAnchor.MiddleRight };
             if (white == null)
                 white = Texture2D.whiteTexture;
         }
