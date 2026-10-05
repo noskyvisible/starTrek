@@ -31,6 +31,11 @@ namespace StarTrek.EditorTools
             { "M_Kli_WarpGlow", 4f },
             { "M_Fre_Strobe", 12f },
             { "M_Prop_Emitter", 3f },
+            { "M_Fre_Light_Emergency", 3f },
+            { "M_Fre_Light_Red", 3f },
+            { "M_Fre_Screen", 1.2f },
+            { "M_Fre_Glow_Fuel", 4f },
+            { "M_Fre_Weld", 0.6f },
             { "M_Prop_Screen", 1.4f },
         };
 

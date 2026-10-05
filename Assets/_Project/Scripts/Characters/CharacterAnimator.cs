@@ -50,7 +50,12 @@ namespace StarTrek.Characters
             lastPosition = transform.position;
         }
 
-        void Start() => Play(startState, 0f);
+        void Start()
+        {
+            // Another component may already have chosen a pose (seated crew, injured survivors).
+            if (current == null)
+                Play(startState, 0f);
+        }
 
         GameObject FindProp(string suffix)
         {

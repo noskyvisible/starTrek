@@ -92,7 +92,7 @@ namespace StarTrek.Combat
         static Vector3 AimPoint(ScanTarget s)
         {
             var c = s.GetComponentInChildren<Collider>();
-            return c != null ? c.bounds.center : s.transform.position + Vector3.up * 0.5f;
+            return c != null ? c.bounds.center : s.transform.position;
         }
 
         void OnGUI()

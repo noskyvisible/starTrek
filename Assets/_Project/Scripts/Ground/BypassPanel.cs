@@ -24,6 +24,7 @@ namespace StarTrek.Ground
             ? "Lock seized. Scan it with the tricorder [T], or cut the weld (phaser on kill)"
             : "Bypass the lock";
         public bool CanInteract => !open;
+        public UnityEvent OnOpened => onOpened;
 
         public void Configure(SlidingDoor target) => door = target;
 

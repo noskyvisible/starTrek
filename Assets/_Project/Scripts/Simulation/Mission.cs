@@ -270,6 +270,22 @@ namespace StarTrek.Simulation
                 StartBreach();
         }
 
+        /// <summary>
+        /// Development shortcut for playing the freighter scene on its own: the ship is at the Maru and
+        /// the away team is already aboard (no beam-out event, the scene is already loaded).
+        /// </summary>
+        public void BeginAwayMissionHere()
+        {
+            if (Beat < MissionBeat.Rescue)
+                SkipTo(MissionBeat.Rescue);
+            if (Beat != MissionBeat.Rescue)
+                return;
+            AwayTeamAboard = true;
+            Record.AwayTeamSent = true;
+            SetBeat(MissionBeat.AwayMission);
+            SetObjective("Find the survivors and seal the fuel leak. Tricorder [T], hand phaser [F].");
+        }
+
         // ------------------------------------------------------------------ tick
 
         public void Tick(float dt)

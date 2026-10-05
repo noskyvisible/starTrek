@@ -18,6 +18,8 @@ namespace StarTrek.Ground
         [SerializeField] RadiationZone[] radiation;
         [SerializeField] float sealSeconds = 4f;
         [SerializeField] Light warningLight;
+        [Tooltip("The venting fuel's glow and lights, switched off once the leak is sealed.")]
+        [SerializeField] GameObject[] hideWhenSealed;
         [SerializeField] AudioSource audioSource;
 
         bool sealing, done;
@@ -51,6 +53,10 @@ namespace StarTrek.Ground
                     z.Seal();
             if (warningLight != null)
                 warningLight.color = new Color(0.3f, 1f, 0.45f);
+            if (hideWhenSealed != null)
+                foreach (var go in hideWhenSealed)
+                    if (go != null)
+                        go.SetActive(false);
             if (audioSource != null)
                 audioSource.PlayOneShot(ProceduralSfx.Chirp, 0.7f);
             BridgeMessageLog.Post("Away team", "Leak sealed. Radiation's falling off.");
