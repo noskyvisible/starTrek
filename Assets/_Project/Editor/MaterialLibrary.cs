@@ -30,6 +30,8 @@ namespace StarTrek.EditorTools
             { "M_Kli_Window", 4f },
             { "M_Kli_WarpGlow", 4f },
             { "M_Fre_Strobe", 12f },
+            { "M_Prop_Emitter", 3f },
+            { "M_Prop_Screen", 1.4f },
         };
 
         static readonly int BaseColorFactor = Shader.PropertyToID("baseColorFactor");

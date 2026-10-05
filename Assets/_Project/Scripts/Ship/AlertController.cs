@@ -73,7 +73,7 @@ namespace StarTrek.Ship
 
         public void SetLevel(AlertLevel level)
         {
-            if (level == Level)
+            if (level == Level || houseLights)
                 return;
             Level = level;
 
@@ -98,6 +98,24 @@ namespace StarTrek.Ship
             LevelChanged?.Invoke(level);
         }
 
+        /// <summary>
+        /// The simulation is over: alerts stop and every light goes to flat, bright work light, like
+        /// the house lights coming up on a stage set.
+        /// </summary>
+        public void HouseLights(float brightness = 1.8f)
+        {
+            SetLevel(AlertLevel.Normal);
+            for (int i = 0; i < lightStates.Length; i++)
+            {
+                lightStates[i].Color = new Color(0.95f, 0.97f, 1f);
+                lightStates[i].Intensity *= brightness;
+                lightStates[i].Light.color = lightStates[i].Color;
+                lightStates[i].Light.intensity = lightStates[i].Intensity;
+            }
+            houseLights = true;
+        }
+
+        bool houseLights;
         float flickerUntil, flickerStrength;
         bool flickering;
 

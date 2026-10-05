@@ -325,6 +325,21 @@ namespace StarTrek.Tests
         }
 
         [Test]
+        public void SkipTo_SetsUpEachLaterBeat()
+        {
+            mission.SkipTo(MissionBeat.Rescue);
+            Assert.That(mission.Beat, Is.EqualTo(MissionBeat.Rescue));
+            Assert.That(ship.InNeutralZone, Is.True);
+            Assert.That(ship.Execute(CommandId.AwayTeam).Accepted, Is.True, "in transporter range of the Maru");
+            mission.SkipTo(MissionBeat.Boarded);
+            Assert.That(ship.AmbushSprung, Is.True);
+            Assert.That(boarders, Is.EqualTo(3));
+            mission.SkipTo(MissionBeat.CoreBreach);
+            Assert.That(mission.Beat, Is.EqualTo(MissionBeat.CoreBreach));
+            Assert.That(mission.BreachRemaining, Is.EqualTo(Mission.BreachSeconds));
+        }
+
+        [Test]
         public void ADestroyedHull_EndsTheTest()
         {
             ReachTheAmbush();

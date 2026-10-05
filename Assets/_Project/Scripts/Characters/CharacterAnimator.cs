@@ -29,6 +29,14 @@ namespace StarTrek.Characters
         GameObject phaser, tricorder, disruptor, batleth;
 
         public string Current => current;
+        /// <summary>True while a one-shot (fire, swing, hit) is playing.</summary>
+        public bool InOneShot => oneShotUntil > 0f;
+        /// <summary>Freeze the pose (the simulation ending), or let it move again.</summary>
+        public void Freeze(bool frozen)
+        {
+            if (animator != null)
+                animator.speed = frozen ? 0f : 1f;
+        }
         public bool DriveLocomotion { get => driveLocomotion; set => driveLocomotion = value; }
 
         void Awake()

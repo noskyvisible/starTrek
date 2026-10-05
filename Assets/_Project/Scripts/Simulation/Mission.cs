@@ -203,6 +203,15 @@ namespace StarTrek.Simulation
             Ship.HoldAmbush = false;
         }
 
+        /// <summary>The cadet went down on the freighter: the bridge pulls them out.</summary>
+        public void ReportAwayTeamInjured()
+        {
+            if (Beat != MissionBeat.AwayMission || beamingBack)
+                return;
+            Spoke?.Invoke("Bridge", "The away team leader is down! Emergency transport, now!");
+            BeamBack();
+        }
+
         public void ReportBoarderDown(bool killed)
         {
             if (killed) Record.BoardersKilled++;
@@ -216,6 +225,49 @@ namespace StarTrek.Simulation
         {
             Spoke?.Invoke("Simulator", "Captain down.");
             End(MissionOutcome.CaptainKilled);
+        }
+
+        /// <summary>
+        /// Development shortcut: jump straight to a later beat, setting the ship up as if the cadet had
+        /// got there (warped to the Maru, sprung the ambush...). Used by tests and the dev keys.
+        /// </summary>
+        public void SkipTo(MissionBeat beat)
+        {
+            if (beat <= Beat || Beat == MissionBeat.Ended)
+                return;
+            if (Beat == MissionBeat.Arrival)
+                StartDistressCall();
+            if (beat == MissionBeat.DistressCall)
+                return;
+            if (Beat == MissionBeat.DistressCall)
+            {
+                var maru = Ship.DistressShip;
+                Ship.Flight.X = maru.X;
+                Ship.Flight.Y = maru.Y - Flight.ArrivalStandoffKm;
+                Ship.Flight.Heading = 0f;
+                Ship.Flight.AtWarp = false;
+                Ship.Flight.SpeedKmS = 0;
+                Ship.Flight.ImpulseSetting = 0f;
+                EnterZone();
+                TickRescue();
+            }
+            if (beat == MissionBeat.Rescue || beat == MissionBeat.AwayMission)
+                return;
+            if (Beat < MissionBeat.Ambush)
+            {
+                AwayTeamAboard = false;
+                Ship.HoldAmbush = false;
+                Ship.SpringAmbush();
+                StartAmbush();
+            }
+            if (beat == MissionBeat.Ambush)
+                return;
+            if (Beat < MissionBeat.Boarded)
+                StartBoarding();
+            if (beat == MissionBeat.Boarded)
+                return;
+            if (Beat < MissionBeat.CoreBreach)
+                StartBreach();
         }
 
         // ------------------------------------------------------------------ tick
@@ -416,7 +468,9 @@ namespace StarTrek.Simulation
         {
             beamingBack = true;
             returnTime = Time;
-            Record.SurvivorsRescued += SurvivorsTagged;
+            // Tagged survivors only come too if the transporter can lock on through the radiation.
+            if (Record.LeakSealed)
+                Record.SurvivorsRescued += SurvivorsTagged;
             SurvivorsTagged = 0;
             AwayTeamBeamBack?.Invoke();
         }

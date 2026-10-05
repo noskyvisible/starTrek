@@ -32,6 +32,9 @@ namespace StarTrek.Interaction
 
         public bool IsOpen => openAmount > 0.99f;
 
+        /// <summary>Free a locked or jammed door (wired to a cut weld or a bypassed lock).</summary>
+        public void Unlock() => locked = false;
+
         public string Prompt => lockedPrompt;
         public bool CanInteract => locked;
 

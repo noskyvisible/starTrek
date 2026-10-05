@@ -225,7 +225,17 @@ namespace StarTrek.EditorTools
             volume.sharedProfile = profile;
         }
 
+        /// <summary>What the cadet carries in a scene.</summary>
+        public struct PlayerKit
+        {
+            public bool Phaser, Tricorder, Communicator;
+            public static PlayerKit Full => new PlayerKit { Phaser = true, Tricorder = true };
+        }
+
         public static GameObject AddPlayer(InputActionAsset controls, Vector3 position, Quaternion rotation, int cullingMask = ~0)
+            => AddPlayer(controls, position, rotation, PlayerKit.Full, cullingMask);
+
+        public static GameObject AddPlayer(InputActionAsset controls, Vector3 position, Quaternion rotation, PlayerKit kit, int cullingMask = ~0)
         {
             var player = new GameObject("Player");
             player.tag = "Player";
@@ -277,7 +287,105 @@ namespace StarTrek.EditorTools
             var hudSo = new SerializedObject(hud);
             hudSo.FindProperty("interactor").objectReferenceValue = interactor;
             hudSo.ApplyModifiedPropertiesWithoutUndo();
+
+            AddPlayerKit(player, controls, pivot, eyes.transform, kit);
+            player.AddComponent<StarTrek.Bridge.BridgeMessageLog>();
+
+            var spawn = new GameObject("Spawn_Default");
+            spawn.transform.SetPositionAndRotation(position, rotation);
+            spawn.AddComponent<StarTrek.Core.SpawnPoint>();
             return player;
+        }
+
+        /// <summary>Health, the hand phaser and tricorder (held in front of the camera), the communicator.</summary>
+        static void AddPlayerKit(GameObject player, InputActionAsset controls, Transform pivot, Transform eyes, PlayerKit kit)
+        {
+            GameplaySetup.EnsureBuilt();
+            var health = player.AddComponent<StarTrek.Combat.Health>();
+            var hso = new SerializedObject(health);
+            hso.FindProperty("maxHealth").floatValue = 100f;
+            hso.FindProperty("regenPerSecond").floatValue = 6f;
+            hso.FindProperty("regenDelay").floatValue = 5f;
+            hso.ApplyModifiedPropertiesWithoutUndo();
+            player.AddComponent<StarTrek.Combat.PlayerVitals>();
+            var audio = AddAudio(player, spatial: false);
+
+            var phaserView = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(GameplaySetup.PhaserViewPath), eyes);
+            phaserView.transform.localPosition = new Vector3(0.2f, -0.17f, 0.4f);
+            phaserView.transform.localRotation = Quaternion.Euler(-3f, -14f, 0f);
+            var tricorderView = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(GameplaySetup.TricorderViewPath), eyes);
+            tricorderView.transform.localPosition = new Vector3(-0.12f, -0.15f, 0.36f);
+            tricorderView.transform.localRotation = Quaternion.Euler(-48f, 14f, 0f);
+
+            var phaser = player.AddComponent<StarTrek.Combat.HandPhaser>();
+            var pso = new SerializedObject(phaser);
+            pso.FindProperty("view").objectReferenceValue = pivot;
+            pso.FindProperty("muzzle").objectReferenceValue = phaserView.transform.Find("Muzzle");
+            pso.FindProperty("audioSource").objectReferenceValue = audio;
+            pso.ApplyModifiedPropertiesWithoutUndo();
+
+            var tricorder = player.AddComponent<StarTrek.Combat.Tricorder>();
+            var tso = new SerializedObject(tricorder);
+            tso.FindProperty("view").objectReferenceValue = pivot;
+            tso.FindProperty("audioSource").objectReferenceValue = audio;
+            tso.ApplyModifiedPropertiesWithoutUndo();
+
+            var equipment = player.AddComponent<StarTrek.Combat.PlayerEquipment>();
+            var eso = new SerializedObject(equipment);
+            eso.FindProperty("actions").objectReferenceValue = controls;
+            eso.FindProperty("phaser").objectReferenceValue = phaser;
+            eso.FindProperty("phaserModel").objectReferenceValue = phaserView;
+            eso.FindProperty("tricorder").objectReferenceValue = tricorder;
+            eso.FindProperty("tricorderModel").objectReferenceValue = tricorderView;
+            eso.FindProperty("phaserAllowed").boolValue = kit.Phaser;
+            eso.FindProperty("tricorderAllowed").boolValue = kit.Tricorder;
+            eso.ApplyModifiedPropertiesWithoutUndo();
+
+            if (kit.Communicator)
+            {
+                var comm = player.AddComponent<StarTrek.Ground.AwayCommunicator>();
+                var cso = new SerializedObject(comm);
+                cso.FindProperty("actions").objectReferenceValue = controls;
+                cso.FindProperty("audioSource").objectReferenceValue = audio;
+                cso.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        /// <summary>A named arrival point for scene loads (see GameSession).</summary>
+        public static Transform AddSpawnPoint(string id, Vector3 position, Quaternion rotation)
+        {
+            var go = new GameObject("Spawn_" + id);
+            go.transform.SetPositionAndRotation(position, rotation);
+            var spawn = go.AddComponent<StarTrek.Core.SpawnPoint>();
+            var so = new SerializedObject(spawn);
+            so.FindProperty("id").stringValue = id;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return go.transform;
+        }
+
+        /// <summary>
+        /// Bakes a NavMesh for the NPCs (humanoid agent) from the scene's colliders, saves it next to
+        /// the scene and adds a <see cref="StarTrek.Core.SceneNavMesh"/> that loads it. Run it before
+        /// placing characters, so their capsules don't punch holes in it.
+        /// </summary>
+        public static UnityEngine.AI.NavMeshData BakeNavMesh(string scenePath, Bounds bounds)
+        {
+            var sources = new List<UnityEngine.AI.NavMeshBuildSource>();
+            int exclude = 1 << LayerMask.NameToLayer("Ignore Raycast");
+            UnityEngine.AI.NavMeshBuilder.CollectSources(bounds, ~exclude, UnityEngine.AI.NavMeshCollectGeometry.PhysicsColliders, 0,
+                new List<UnityEngine.AI.NavMeshBuildMarkup>(), sources);
+            var settings = UnityEngine.AI.NavMesh.GetSettingsByID(0);
+            settings.agentRadius = 0.3f;
+            settings.agentHeight = 1.8f;
+            settings.agentClimb = 0.36f;
+            settings.agentSlope = 45f;
+            var data = UnityEngine.AI.NavMeshBuilder.BuildNavMeshData(settings, sources, bounds, Vector3.zero, Quaternion.identity);
+            string path = System.IO.Path.ChangeExtension(scenePath, null) + "_NavMesh.asset";
+            AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(data, path);
+            var go = new GameObject("NavMesh");
+            go.AddComponent<StarTrek.Core.SceneNavMesh>().Data = data;
+            return data;
         }
 
         /// <summary>Makes the SFX bank current for the scene and plays a quiet room ambience loop.</summary>

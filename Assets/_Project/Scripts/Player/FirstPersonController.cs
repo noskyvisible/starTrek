@@ -60,6 +60,22 @@ namespace StarTrek.Player
             set { inputEnabled = value; ApplyCursor(); }
         }
 
+        bool locked;
+
+        /// <summary>
+        /// A full-screen menu owns the mouse (the evaluation): no looking, walking, pausing or
+        /// click-to-resume until it is released.
+        /// </summary>
+        public bool Locked
+        {
+            get => locked;
+            set
+            {
+                locked = value;
+                InputEnabled = !value;
+            }
+        }
+
         void Awake()
         {
             controller = GetComponent<CharacterController>();
@@ -95,6 +111,8 @@ namespace StarTrek.Player
 
         void Update()
         {
+            if (locked)
+                return;
             if (pause.WasPressedThisFrame())
                 InputEnabled = !InputEnabled;
             else if (!inputEnabled && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
@@ -125,6 +143,21 @@ namespace StarTrek.Player
             pitch = Mathf.Clamp(pitchDegrees, -pitchLimit, pitchLimit);
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        }
+
+        /// <summary>Move the player instantly (arriving in a scene, the transporter), standing, facing yaw.</summary>
+        public void Teleport(Vector3 position, float yawDegrees)
+        {
+            if (seat != null)
+            {
+                seat.Vacate();
+                seat = null;
+            }
+            controller.enabled = false;
+            transform.position = position;
+            velocity = Vector3.zero;
+            SetLook(yawDegrees, 0f);
+            controller.enabled = true;
         }
 
         /// <summary>Sit at a seat: the view moves to its eye point and walking stops.</summary>

@@ -38,16 +38,6 @@ namespace StarTrek.EditorTools
             ("DamageControl", "Damage Control"),
         };
 
-        // The Kobayashi Maru simulator crew: fellow cadets (GAME_PROMPT §8).
-        static readonly Dictionary<StationRole, string> Officers = new Dictionary<StationRole, string>
-        {
-            { StationRole.Helm, "Cadet Rourke" }, { StationRole.Navigation, "Cadet Okafor" },
-            { StationRole.Tactical, "Cadet Haines" }, { StationRole.Science, "Cadet Varela" },
-            { StationRole.Communications, "Cadet Mbeki" }, { StationRole.Engineering, "Cadet Duffy" },
-            { StationRole.Environmental, "Cadet Lindqvist" }, { StationRole.Security, "Cadet Takeda" },
-            { StationRole.DamageControl, "Cadet Petrov" },
-        };
-
         static readonly Dictionary<StationRole, Color> Accents = new Dictionary<StationRole, Color>
         {
             { StationRole.Helm, new Color(0.4f, 0.75f, 1f) }, { StationRole.Navigation, new Color(1f, 0.75f, 0.3f) },
@@ -60,6 +50,7 @@ namespace StarTrek.EditorTools
         [MenuItem("StarTrek/Build Bridge Scene")]
         public static void Build()
         {
+            GameplaySetup.EnsureBuilt();
             if (!LevelBuildKit.BeginScene(ModelPath, out var inputs))
                 return;
             int spaceLayer = LevelBuildKit.EnsureLayer("Space");
@@ -86,6 +77,16 @@ namespace StarTrek.EditorTools
             var player = LevelBuildKit.AddPlayer(inputs.Controls, spawn, facing, ~(1 << spaceLayer));
             AddCaptainTools(player);
             AddImpactFx(alert, player);
+            LevelBuildKit.Find(level, "PROP_Bridge_CaptainChair").gameObject.AddComponent<CaptainsChair>();
+
+            // The away team beams back into the well behind the captain's chair, facing the viewscreen.
+            LevelBuildKit.AddSpawnPoint(StarTrek.Core.GameSession.ReturnSpawn, OnRing(1.7f, 180f) + Vector3.up * 0.05f, Quaternion.identity);
+
+            // NPCs: bake their NavMesh first, so their capsules don't cut holes in it.
+            var navMesh = LevelBuildKit.BakeNavMesh(ScenePath, new Bounds(new Vector3(0f, 2f, 0f), new Vector3(WallRadius * 2.4f, 6f, WallRadius * 2.4f)));
+            AddCrew(level, consoles);
+            var boarding = AddBoarding(navMesh);
+            AddSimulationEnd(level, alert, boarding);
 
             LevelBuildKit.SaveScene(ScenePath);
             Debug.Log($"[StarTrek] Built {ScenePath} with {lights.Count} lights, Space layer {spaceLayer}.");
@@ -141,6 +142,104 @@ namespace StarTrek.EditorTools
             var so = new SerializedObject(link);
             so.FindProperty("console").objectReferenceValue = console;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // Where a seated officer's feet go, in the chair's local space (+Z = facing the console).
+        static readonly Vector3 CrewSeatOffset = new Vector3(0f, 0f, 0.02f);
+
+        /// <summary>A cadet officer at every station: seated, working the console, ready to stand aside.</summary>
+        static void AddCrew(GameObject level, Dictionary<StationRole, StationConsole> consoles)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(GameplaySetup.OfficerPath);
+            var parent = new GameObject("Crew").transform;
+            foreach (StationRole role in Enum.GetValues(typeof(StationRole)))
+            {
+                string seatName = "PROP_Seat_" + role;
+                Vector3 exit = role == StationRole.Helm ? new Vector3(-0.75f, 0f, 0f)
+                             : role == StationRole.Navigation ? new Vector3(0.75f, 0f, 0f)
+                             : new Vector3(0f, 0f, -0.7f);
+                var chair = LevelBuildKit.Find(level, seatName);
+                var pose = Child(chair, "CrewSeatPose", CrewSeatOffset, Quaternion.identity);
+                var stand = Child(chair, "CrewStandPoint", exit + new Vector3(0f, 0f, -0.1f), Quaternion.identity);
+                // Stand points sit on the floor, whatever height the chair's origin is at.
+                if (Physics.Raycast(stand.position + Vector3.up, Vector3.down, out var floor, 2.5f, ~(1 << 2), QueryTriggerInteraction.Ignore))
+                    stand.position = floor.point;
+
+                var officer = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+                officer.name = "Crew_" + role;
+                officer.transform.SetPositionAndRotation(pose.position, pose.rotation);
+                var crew = officer.GetComponent<StarTrek.Crew.CrewOfficer>();
+                var so = new SerializedObject(crew);
+                so.FindProperty("role").enumValueIndex = (int)role;
+                so.FindProperty("seat").objectReferenceValue = chair.GetComponent<StarTrek.Interaction.Seat>();
+                so.FindProperty("seatPose").objectReferenceValue = pose;
+                so.FindProperty("standPoint").objectReferenceValue = stand;
+                so.FindProperty("fightsBack").boolValue = role == StationRole.Security || role == StationRole.Tactical;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                // Looking at the officer gives orders to their station.
+                var link = officer.AddComponent<StationLink>();
+                var lso = new SerializedObject(link);
+                lso.FindProperty("console").objectReferenceValue = consoles[role];
+                lso.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        static StarTrek.Boarding.BoardingDirector AddBoarding(UnityEngine.AI.NavMeshData navMesh)
+        {
+            // The baked NavMesh is only live in Play mode; load it briefly to check the spawn points.
+            var live = UnityEngine.AI.NavMesh.AddNavMeshData(navMesh);
+            var go = new GameObject("Boarding");
+            var director = go.AddComponent<StarTrek.Boarding.BoardingDirector>();
+            // Aft by the turbolifts, the port ring, and the well in front of the captain.
+            var points = new[]
+            {
+                (OnRing(WallRadius - 1.4f, 200f) + Vector3.up * RingHeight, 20f),
+                (OnRing(WallRadius - 1.4f, 110f) + Vector3.up * RingHeight, -70f),
+                (OnRing(2.6f, -40f), 140f),
+            };
+            var spawns = new Transform[points.Length];
+            for (int i = 0; i < points.Length; i++)
+            {
+                spawns[i] = Child(go.transform, "BoarderSpawn_" + i, points[i].Item1, Quaternion.Euler(0f, points[i].Item2, 0f));
+                if (UnityEngine.AI.NavMesh.SamplePosition(spawns[i].position, out var hit, 1.5f, UnityEngine.AI.NavMesh.AllAreas))
+                    spawns[i].position = hit.position;
+                else
+                    Debug.LogWarning($"[StarTrek] Boarder spawn {i} is off the NavMesh at {spawns[i].position}.");
+            }
+            live.Remove();
+            var so = new SerializedObject(director);
+            so.FindProperty("boarderPrefab").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(GameplaySetup.BoarderPath);
+            var arr = so.FindProperty("spawnPoints");
+            arr.arraySize = spawns.Length;
+            for (int i = 0; i < spawns.Length; i++)
+                arr.GetArrayElementAtIndex(i).objectReferenceValue = spawns[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return director;
+        }
+
+        static void AddSimulationEnd(GameObject level, AlertController alert, StarTrek.Boarding.BoardingDirector boarding)
+        {
+            var go = new GameObject("Simulation_End");
+            var end = go.AddComponent<SimulationEnd>();
+            var evaluation = go.AddComponent<StarTrek.UI.EvaluationScreen>();
+            var audio = LevelBuildKit.AddAudio(go, spatial: false);
+            Renderer screen = null;
+            foreach (var r in level.GetComponentsInChildren<Renderer>(true))
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && m.name.StartsWith("M_Fed_Viewscreen"))
+                        screen = r;
+            var so = new SerializedObject(end);
+            so.FindProperty("lights").objectReferenceValue = alert;
+            so.FindProperty("viewscreen").objectReferenceValue = screen;
+            so.FindProperty("spaceView").objectReferenceValue = UnityEngine.Object.FindAnyObjectByType<SpaceView>();
+            var cam = GameObject.Find("ViewscreenCamera");
+            so.FindProperty("viewscreenCamera").objectReferenceValue = cam != null ? cam.GetComponent<Camera>() : null;
+            so.FindProperty("boarding").objectReferenceValue = boarding;
+            so.FindProperty("evaluation").objectReferenceValue = evaluation;
+            so.FindProperty("audioSource").objectReferenceValue = audio;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            if (screen == null)
+                Debug.LogWarning("[StarTrek] No viewscreen renderer found for the end-of-simulation test pattern.");
         }
 
         static void AddRedAlertButtons(GameObject level, ShipSimHost host)
@@ -207,7 +306,7 @@ namespace StarTrek.EditorTools
             var audio = LevelBuildKit.AddAudio(owner, spatial: true);
             var so = new SerializedObject(console);
             so.FindProperty("role").enumValueIndex = (int)role;
-            so.FindProperty("officer").stringValue = Officers[role];
+            so.FindProperty("officer").stringValue = CrewRoster.Officer(role);
             so.FindProperty("controlSurface").objectReferenceValue = surface;
             so.FindProperty("surfaceSize").vector2Value = surfaceSize;
             var anchors = so.FindProperty("screenAnchors");
@@ -250,7 +349,6 @@ namespace StarTrek.EditorTools
             so.FindProperty("interactor").objectReferenceValue = player.GetComponent<StarTrek.Interaction.Interactor>();
             so.FindProperty("body").objectReferenceValue = player.GetComponent<StarTrek.Player.FirstPersonController>();
             so.ApplyModifiedPropertiesWithoutUndo();
-            player.AddComponent<BridgeMessageLog>();
         }
 
         static void AddViewscreenFeed(int spaceLayer)

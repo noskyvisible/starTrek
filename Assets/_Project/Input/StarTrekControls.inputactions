@@ -12,7 +12,12 @@
                 { "name": "Crouch", "type": "Button", "id": "5d1c0a17-0006-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
                 { "name": "Interact", "type": "Button", "id": "5d1c0a17-0007-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
                 { "name": "Pause", "type": "Button", "id": "5d1c0a17-0008-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
-                { "name": "Stand", "type": "Button", "id": "5d1c0a17-0009-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false }
+                { "name": "Stand", "type": "Button", "id": "5d1c0a17-0009-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Fire", "type": "Button", "id": "5d1c0a17-0010-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Phaser", "type": "Button", "id": "5d1c0a17-0011-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Tricorder", "type": "Button", "id": "5d1c0a17-0012-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "PhaserSetting", "type": "Button", "id": "5d1c0a17-0013-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Communicator", "type": "Button", "id": "5d1c0a17-0014-4a01-8001-170117011701", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false }
             ],
             "bindings": [
                 { "name": "WASD", "id": "5d1c0a17-0101-4a01-8001-170117011701", "path": "2DVector", "interactions": "", "processors": "", "groups": "", "action": "Move", "isComposite": true, "isPartOfComposite": false },
@@ -33,7 +38,17 @@
                 { "name": "", "id": "5d1c0a17-0116-4a01-8001-170117011701", "path": "<Keyboard>/escape", "interactions": "", "processors": "", "groups": "", "action": "Pause", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "5d1c0a17-0117-4a01-8001-170117011701", "path": "<Gamepad>/start", "interactions": "", "processors": "", "groups": "", "action": "Pause", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "5d1c0a17-0118-4a01-8001-170117011701", "path": "<Keyboard>/space", "interactions": "", "processors": "", "groups": "", "action": "Stand", "isComposite": false, "isPartOfComposite": false },
-                { "name": "", "id": "5d1c0a17-0119-4a01-8001-170117011701", "path": "<Gamepad>/buttonEast", "interactions": "", "processors": "", "groups": "", "action": "Stand", "isComposite": false, "isPartOfComposite": false }
+                { "name": "", "id": "5d1c0a17-0119-4a01-8001-170117011701", "path": "<Gamepad>/buttonEast", "interactions": "", "processors": "", "groups": "", "action": "Stand", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0120-4a01-8001-170117011701", "path": "<Mouse>/leftButton", "interactions": "", "processors": "", "groups": "", "action": "Fire", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0121-4a01-8001-170117011701", "path": "<Gamepad>/rightTrigger", "interactions": "", "processors": "", "groups": "", "action": "Fire", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0122-4a01-8001-170117011701", "path": "<Keyboard>/f", "interactions": "", "processors": "", "groups": "", "action": "Phaser", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0123-4a01-8001-170117011701", "path": "<Gamepad>/dpad/up", "interactions": "", "processors": "", "groups": "", "action": "Phaser", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0124-4a01-8001-170117011701", "path": "<Keyboard>/t", "interactions": "", "processors": "", "groups": "", "action": "Tricorder", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0125-4a01-8001-170117011701", "path": "<Gamepad>/dpad/down", "interactions": "", "processors": "", "groups": "", "action": "Tricorder", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0126-4a01-8001-170117011701", "path": "<Keyboard>/x", "interactions": "", "processors": "", "groups": "", "action": "PhaserSetting", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0127-4a01-8001-170117011701", "path": "<Gamepad>/dpad/right", "interactions": "", "processors": "", "groups": "", "action": "PhaserSetting", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0128-4a01-8001-170117011701", "path": "<Keyboard>/v", "interactions": "", "processors": "", "groups": "", "action": "Communicator", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "5d1c0a17-0129-4a01-8001-170117011701", "path": "<Gamepad>/select", "interactions": "", "processors": "", "groups": "", "action": "Communicator", "isComposite": false, "isPartOfComposite": false }
             ]
         }
     ],
