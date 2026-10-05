@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21be5dda11a3df7459d2a9b920f51d29, type: 3}
+  m_Name: SFX_Bank
+  m_EditorClassIdentifier: StarTrek.Runtime::StarTrek.Audio.SfxBank
+  buttonPress: {fileID: 8300000, guid: 0e7759991e91011429a2c47d31214028, type: 3}
+  buttonDenied: {fileID: 8300000, guid: 734c9567735fde348a68323dfbf470d9, type: 3}
+  doorOpen: {fileID: 8300000, guid: 3759f92317b113b48a7228e5553c48ed, type: 3}
+  doorClose: {fileID: 8300000, guid: 70778c6810d090f4a8db90edb39de441, type: 3}
+  bridgeAmbience: {fileID: 8300000, guid: 5beb332442e645540bfd46b444badb55, type: 3}
+  shieldsUp: {fileID: 8300000, guid: 70ca4c097b9e815459d2424647491d18, type: 3}
+  phaserFire: {fileID: 8300000, guid: 4076169ee2ca7dd45b49f2db696bdb33, type: 3}
+  torpedoLaunch: {fileID: 8300000, guid: 919b88cc1954dc540a78dfa1287ffde0, type: 3}
+  hullHit: {fileID: 8300000, guid: 868b5a199a13a69458ce5fa8369dbff4, type: 3}
+  explosion: {fileID: 8300000, guid: 7430e104c670ac44abb64441e03167e0, type: 3}

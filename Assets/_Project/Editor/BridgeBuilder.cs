@@ -78,6 +78,7 @@ namespace StarTrek.EditorTools
             AddViewscreenFeed(spaceLayer);
 
             LevelBuildKit.SetUpEnvironment(inputs.Volume, new Color(0.07f, 0.07f, 0.08f));
+            LevelBuildKit.AddAudioDirector(ambienceVolume: 0.22f);
 
             // Spawn just off the starboard turbolift (155 deg), as if the player has stepped out onto the bridge.
             var spawn = OnRing(WallRadius - 1.2f, 155f) + Vector3.up * (RingHeight + 0.05f);

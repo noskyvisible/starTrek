@@ -62,7 +62,7 @@ namespace StarTrek.Interaction
             {
                 opening = shouldOpen;
                 if (audioSource)
-                    audioSource.PlayOneShot(ProceduralSfx.DoorWhoosh);
+                    audioSource.PlayOneShot(opening ? SfxBank.DoorOpen : SfxBank.DoorClose);
             }
 
             float target = opening ? 1f : 0f;
@@ -78,7 +78,7 @@ namespace StarTrek.Interaction
         public void Interact(Interactor interactor)
         {
             if (audioSource)
-                audioSource.PlayOneShot(ProceduralSfx.Denied);
+                audioSource.PlayOneShot(SfxBank.ButtonDenied);
         }
     }
 }

@@ -83,7 +83,36 @@ namespace StarTrek.EditorTools
             CreateFolders();
             CreateQualityTiers();
             CreateVolumeProfile();
+            CreateSfxBank();
             Debug.Log("[StarTrek] Project setup complete.");
+        }
+
+        public const string SfxBankPath = Root + "/Audio/SFX/SFX_Bank.asset";
+        const string Kenney = Root + "/Audio/SFX/Kenney";
+
+        /// <summary>Fills the SFX bank with the CC0 Kenney sounds (see docs/audio_licenses.md). Keeps hand edits.</summary>
+        [MenuItem("StarTrek/Setup/Create SFX Bank")]
+        public static void CreateSfxBank()
+        {
+            var bank = AssetDatabase.LoadAssetAtPath<StarTrek.Audio.SfxBank>(SfxBankPath);
+            if (bank == null)
+            {
+                bank = ScriptableObject.CreateInstance<StarTrek.Audio.SfxBank>();
+                AssetDatabase.CreateAsset(bank, SfxBankPath);
+            }
+            AudioClip Clip(string path) => AssetDatabase.LoadAssetAtPath<AudioClip>($"{Kenney}/{path}");
+            bank.buttonPress = bank.buttonPress ? bank.buttonPress : Clip("interface-sounds/Audio/select_002.ogg");
+            bank.buttonDenied = bank.buttonDenied ? bank.buttonDenied : Clip("interface-sounds/Audio/error_004.ogg");
+            bank.doorOpen = bank.doorOpen ? bank.doorOpen : Clip("sci-fi-sounds/Audio/doorOpen_001.ogg");
+            bank.doorClose = bank.doorClose ? bank.doorClose : Clip("sci-fi-sounds/Audio/doorClose_001.ogg");
+            bank.bridgeAmbience = bank.bridgeAmbience ? bank.bridgeAmbience : Clip("sci-fi-sounds/Audio/spaceEngineLow_001.ogg");
+            bank.shieldsUp = bank.shieldsUp ? bank.shieldsUp : Clip("sci-fi-sounds/Audio/forceField_000.ogg");
+            bank.phaserFire = bank.phaserFire ? bank.phaserFire : Clip("sci-fi-sounds/Audio/laserLarge_000.ogg");
+            bank.torpedoLaunch = bank.torpedoLaunch ? bank.torpedoLaunch : Clip("sci-fi-sounds/Audio/laserRetro_002.ogg");
+            bank.hullHit = bank.hullHit ? bank.hullHit : Clip("impact-sounds/Audio/impactMetal_heavy_000.ogg");
+            bank.explosion = bank.explosion ? bank.explosion : Clip("sci-fi-sounds/Audio/explosionCrunch_000.ogg");
+            EditorUtility.SetDirty(bank);
+            AssetDatabase.SaveAssets();
         }
 
         [MenuItem("StarTrek/Setup/Create Folders")]

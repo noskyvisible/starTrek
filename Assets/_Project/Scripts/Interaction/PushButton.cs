@@ -27,7 +27,7 @@ namespace StarTrek.Interaction
         {
             pressedAt = Time.time;
             if (audioSource)
-                audioSource.PlayOneShot(ProceduralSfx.Chirp);
+                audioSource.PlayOneShot(SfxBank.ButtonPress);
             onPressed.Invoke();
         }
 

@@ -276,6 +276,25 @@ namespace StarTrek.EditorTools
             return player;
         }
 
+        /// <summary>Makes the SFX bank current for the scene and plays a quiet room ambience loop.</summary>
+        public static void AddAudioDirector(float ambienceVolume)
+        {
+            var bank = AssetDatabase.LoadAssetAtPath<StarTrek.Audio.SfxBank>(ProjectSetup.SfxBankPath);
+            if (bank == null)
+            {
+                ProjectSetup.CreateSfxBank();
+                bank = AssetDatabase.LoadAssetAtPath<StarTrek.Audio.SfxBank>(ProjectSetup.SfxBankPath);
+            }
+            var go = new GameObject("Audio_Director");
+            var ambience = AddAudio(go, spatial: false);
+            ambience.volume = ambienceVolume;
+            var director = go.AddComponent<StarTrek.Audio.AudioDirector>();
+            var so = new SerializedObject(director);
+            so.FindProperty("bank").objectReferenceValue = bank;
+            so.FindProperty("ambience").objectReferenceValue = ambience;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         public static AudioSource AddAudio(GameObject go, bool spatial)
         {
             var source = go.AddComponent<AudioSource>();

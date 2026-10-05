@@ -38,6 +38,7 @@ namespace StarTrek.EditorTools
                 box.size = Vector3.Scale(box.size, new Vector3(1.6f, 3f, 1.6f));
 
             LevelBuildKit.SetUpEnvironment(inputs.Volume, new Color(0.09f, 0.09f, 0.11f));
+            LevelBuildKit.AddAudioDirector(ambienceVolume: 0.15f);
 
             Vector3 start = turbolift.transform.position;
             Vector3 toRoom = simRoom.transform.position - start;

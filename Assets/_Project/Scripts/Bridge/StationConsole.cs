@@ -109,7 +109,7 @@ namespace StarTrek.Bridge
         public void PlayClick(bool accepted)
         {
             if (audioSource != null)
-                audioSource.PlayOneShot(accepted ? ProceduralSfx.Chirp : ProceduralSfx.Denied);
+                audioSource.PlayOneShot(accepted ? SfxBank.ButtonPress : SfxBank.ButtonDenied);
         }
     }
 }
