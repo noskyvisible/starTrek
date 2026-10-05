@@ -20,7 +20,11 @@ namespace StarTrek.EditorTools
         const string StarsMaterialPath = MaterialLibrary.Folder + "/M_Space_Stars.mat";
         const string ViewscreenMaterialPath = MaterialLibrary.Folder + "/M_Fed_Viewscreen.mat";
 
+        // Must match st_bridge.py in Interiors_Federation.blend (scaled up from the ~9.1 m film set).
         const float RingHeight = 0.45f;
+        const float WallRadius = 6.4f;
+        const float Ceiling = 4.2f;
+        const float Dome = 4.8f;
 
         // Bridge stations around the raised ring: object suffix and HUD name.
         static readonly (string id, string label)[] Stations =
@@ -50,9 +54,9 @@ namespace StarTrek.EditorTools
 
             LevelBuildKit.SetUpEnvironment(inputs.Volume, new Color(0.07f, 0.07f, 0.08f));
 
-            // Spawn just off the starboard turbolift, as if the player has stepped out onto the bridge.
-            var spawn = new Vector3(1.52f, RingHeight + 0.05f, -3.26f);
-            var facing = Quaternion.LookRotation(new Vector3(-1.52f, 0f, 6.3f), Vector3.up);
+            // Spawn just off the starboard turbolift (155 deg), as if the player has stepped out onto the bridge.
+            var spawn = OnRing(WallRadius - 1.2f, 155f) + Vector3.up * (RingHeight + 0.05f);
+            var facing = Quaternion.LookRotation(new Vector3(-spawn.x, 0f, 3f - spawn.z), Vector3.up);
             LevelBuildKit.AddPlayer(inputs.Controls, spawn, facing, ~(1 << spaceLayer));
 
             LevelBuildKit.SaveScene(ScenePath);
@@ -64,19 +68,29 @@ namespace StarTrek.EditorTools
             var parent = new GameObject("Lights_Bridge").transform;
             var lights = new List<Light>
             {
-                LevelBuildKit.PointLight(parent, "Light_Bridge_Centre", new Vector3(0f, 3.75f, 0f), 7f, 8f)
+                LevelBuildKit.PointLight(parent, "Light_Bridge_Centre", new Vector3(0f, Dome - 0.4f, 0f), 9f, 10f)
             };
-            for (int i = 0; i < 8; i++)
+            const int ringLights = 10;
+            for (int i = 0; i < ringLights; i++)
             {
-                float a = Mathf.Deg2Rad * (22.5f + 45f * i);
-                var p = new Vector3(3.45f * Mathf.Sin(a), 3.35f, 3.45f * Mathf.Cos(a));
-                lights.Add(LevelBuildKit.PointLight(parent, $"Light_Bridge_Ring_{i}", p, 3f, 5f));
+                var p = OnRing(WallRadius * 0.76f, 18f + 360f / ringLights * i) + Vector3.up * (Ceiling - 0.3f);
+                lights.Add(LevelBuildKit.PointLight(parent, $"Light_Bridge_Ring_{i}", p, 3.5f, 6.5f));
             }
 
             // Soft spill from the viewscreen; stays the same during Red Alert, so it isn't in the list.
-            var spill = LevelBuildKit.PointLight(parent, "Light_Viewscreen_Spill", new Vector3(0f, 2.0f, 3.4f), 1.2f, 4.5f);
+            var spill = LevelBuildKit.PointLight(parent, "Light_Viewscreen_Spill", new Vector3(0f, 2.4f, WallRadius * 0.78f), 1.4f, 6f);
             spill.color = new Color(0.6f, 0.75f, 1f);
             return lights;
+        }
+
+        /// <summary>
+        /// Unity position on the bridge floor plan: radius r, angle phi in degrees from forward (+Z),
+        /// positive to starboard (+X). Same convention as P2() in st_bridge.py after the glTF axis swap.
+        /// </summary>
+        static Vector3 OnRing(float r, float phi)
+        {
+            float a = phi * Mathf.Deg2Rad;
+            return new Vector3(r * Mathf.Sin(a), 0f, r * Mathf.Cos(a));
         }
 
         static void AddSeats(GameObject level)

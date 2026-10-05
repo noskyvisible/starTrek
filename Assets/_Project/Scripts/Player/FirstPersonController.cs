@@ -45,6 +45,7 @@ namespace StarTrek.Player
         float yaw, pitch, height, seatYaw;
         bool inputEnabled = true;
         Seat seat;
+        Vector2? scriptedMove;
 
         public bool IsSeated => seat != null;
 
@@ -110,6 +111,21 @@ namespace StarTrek.Player
             Move();
         }
 
+        /// <summary>
+        /// Drive movement from code instead of the Move action (x = strafe, y = forward, -1..1), for
+        /// cutscenes and tests. Pass null to hand control back to the player.
+        /// </summary>
+        public void SetScriptedMove(Vector2? input) => scriptedMove = input;
+
+        /// <summary>Point the view (yaw in world degrees, pitch positive = down). Used by cutscenes and tests.</summary>
+        public void SetLook(float yawDegrees, float pitchDegrees)
+        {
+            yaw = yawDegrees;
+            pitch = Mathf.Clamp(pitchDegrees, -pitchLimit, pitchLimit);
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        }
+
         /// <summary>Sit at a seat: the view moves to its eye point and walking stops.</summary>
         public void SitAt(Seat target)
         {
@@ -157,7 +173,8 @@ namespace StarTrek.Player
         void Move()
         {
             float dt = Time.deltaTime;
-            Vector2 input = inputEnabled ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
+            Vector2 input = scriptedMove ?? (inputEnabled ? move.ReadValue<Vector2>() : Vector2.zero);
+            input = Vector2.ClampMagnitude(input, 1f);
             bool wantsCrouch = inputEnabled && crouch.IsPressed();
             bool crouched = wantsCrouch || (height < standHeight - 0.01f && !HeadroomToStand());
 
