@@ -22,7 +22,7 @@ namespace StarTrek.Simulation
     /// The simulated starship: every system, every command, one Tick. Plain C# with no Unity types,
     /// so it can be unit-tested and shared by the player ship and (later) enemy ships.
     /// </summary>
-    public sealed class Starship
+    public sealed partial class Starship
     {
         public string Name { get; }
         public string Registry { get; }
@@ -173,10 +173,11 @@ namespace StarTrek.Simulation
                         return No(station, "Phasers aren't armed, Captain.");
                     if (Weapons.PhaserCharge < 1f)
                         return No(station, $"Phasers are still charging, {Weapons.PhaserCharge:P0}.");
-                    var refusal = FireControlRefusal();
+                    var refusal = FireControlRefusal() ?? WeaponReachRefusal(PhaserRangeKm, PhaserBlindAftDegrees, true);
                     if (refusal != null)
                         return No(station, refusal);
                     Weapons.PhaserCharge = 0f;
+                    FirePhasersAt(Sensors.Selected);
                     return Ok(station, $"Firing phasers at the {Sensors.Selected.Name}'s {Weapons.TargetSystem.ToString().ToLowerInvariant()}.");
                 }
                 case CommandId.LoadTorpedoes:
@@ -190,11 +191,12 @@ namespace StarTrek.Simulation
                 {
                     if (!Weapons.TorpedoLoaded)
                         return No(station, "No torpedo loaded, Captain.");
-                    var refusal = FireControlRefusal();
+                    var refusal = FireControlRefusal() ?? WeaponReachRefusal(TorpedoRangeKm, TorpedoArcDegrees, false);
                     if (refusal != null)
                         return No(station, refusal);
                     Weapons.TorpedoLoaded = false;
                     Weapons.Torpedoes--;
+                    LaunchTorpedoAt(Sensors.Selected);
                     return Ok(station, $"Torpedo away! {Weapons.Torpedoes} remaining.");
                 }
                 case CommandId.CycleTargetSystem:
@@ -498,6 +500,7 @@ namespace StarTrek.Simulation
                 Say(StationRole.Tactical, "Torpedo loaded and armed.");
 
             TickFlight(dt);
+            TickCombat(dt);
 
             string scan = Sensors.Tick(dt, Damage.Health(ShipSystem.Sensors));
             if (scan != null)

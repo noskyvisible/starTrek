@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
+// Tests can set internal state (e.g. phaser charge) directly.
+[assembly: InternalsVisibleTo("StarTrek.Tests.EditMode")]
 
 namespace StarTrek.Simulation
 {
@@ -175,11 +179,12 @@ namespace StarTrek.Simulation
     public sealed class Flight
     {
         public const double LightSpeedKmS = 299792.458;
-        public const double FullImpulseKmS = LightSpeedKmS * 0.25;
+        /// <summary>Tactical impulse scale for gameplay (fast enough to cross a system, slow enough to fight).</summary>
+        public const double FullImpulseKmS = LightSpeedKmS * 0.05;
         public const float TurnDegreesPerSecond = 12f;
         public const int MaxWarp = 6;
         /// <summary>Drop out of warp this far short of the destination.</summary>
-        public const double ArrivalStandoffKm = 40000;
+        public const double ArrivalStandoffKm = 60000;
 
         public double X { get; internal set; }
         public double Y { get; internal set; }
@@ -232,6 +237,8 @@ namespace StarTrek.Simulation
         public int LifeSigns;
         public float ShieldPercent;
         public string ScanReport;
+        /// <summary>Combat state for ships that can fight; null for everything else.</summary>
+        public HostileState Combat;
     }
 
     /// <summary>Sensor contacts and timed scans.</summary>
